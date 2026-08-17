@@ -1,7 +1,8 @@
 /* Service Worker: haelt die App im Aussendienst ohne Netz lauffaehig.
    Die Cache-Version wird von build.ps1 automatisch aktualisiert. */
 const CACHE = 'punktcodes-5781fd69';
-const ASSETS = ['./', './index.html', './manifest.json', './icon-192.png', './icon-512.png'];
+const ASSETS = ['./', './index.html', './manifest.json',
+                './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
 
 self.addEventListener('install', e => {
   e.waitUntil(
