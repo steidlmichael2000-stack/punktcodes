@@ -65,6 +65,25 @@ Nach einem Update sehen bereits installierte Geräte die neue Fassung **beim zwe
 der Service Worker liefert zuerst den Cache aus (damit die App im Funkloch sofort da ist) und holt
 die neue Version im Hintergrund.
 
+### Wenn nach einem Push nichts ankommt
+
+Die Auslieferung über GitHub Pages ist schon mehrfach mit der inhaltslosen Meldung
+`Page build failed.` abgebrochen, obwohl am Commit nichts auszusetzen war — derselbe Commit lief
+beim erneuten Anstoßen durch. Nach einem Push also kurz nachsehen:
+
+```powershell
+gh api repos/steidlmichael2000-stack/punktcodes/pages/builds --jq '.[0:3][] | "\(.commit[0:7]) \(.status)"'
+```
+
+Steht dort `errored`, hilft ein neuer Anlauf ohne weitere Änderung:
+
+```powershell
+gh api --method POST repos/steidlmichael2000-stack/punktcodes/pages/builds
+```
+
+Ausführliche Logs liefert `gh run list` bzw. `gh run view <id> --log-failed` — Pages-Builds laufen
+als Actions-Workflow *pages build and deployment*.
+
 ## Dateien
 
 | Datei | Zweck |
