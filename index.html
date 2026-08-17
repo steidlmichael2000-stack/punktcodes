@@ -1,0 +1,1085 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b3d62">
+<meta name="description" content="Punktcode-Suche für den Außendienst – offline verfügbar">
+<title>Punktcodes</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  :root{
+    --bg:#f4f5f7; --card:#ffffff; --text:#14181d; --muted:#5b6572;
+    --line:#d8dde3; --accent:#0b5d92; --accent-text:#ffffff;
+    --code-bg:#e8f0f7; --code-text:#0b3d62;
+    --fav:#e0a000; --badge:#e6ebf0; --badge-text:#3c4855;
+    --shadow:0 1px 2px rgba(0,0,0,.10), 0 4px 12px rgba(0,0,0,.05);
+  }
+  html[data-theme="dark"]{
+    --bg:#10141a; --card:#1a2027; --text:#eef2f6; --muted:#9aa6b4;
+    --line:#2c353f; --accent:#4da3e0; --accent-text:#0b1015;
+    --code-bg:#22303c; --code-text:#8fcbf5;
+    --fav:#f0c04a; --badge:#28313b; --badge-text:#c3cdd8;
+    --shadow:0 1px 2px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--text);
+    font:17px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    padding-bottom:env(safe-area-inset-bottom);
+    overscroll-behavior-y:contain;
+  }
+  header{
+    position:sticky; top:0; z-index:20; background:var(--bg);
+    padding:calc(8px + env(safe-area-inset-top)) 12px 6px;
+    border-bottom:1px solid var(--line);
+  }
+  .titlebar{display:flex;align-items:center;gap:10px;margin:0 2px 8px}
+  .titlebar h1{font-size:17px;font-weight:700;margin:0;letter-spacing:.2px}
+  .titlebar .count{font-size:13px;color:var(--muted);margin-left:auto;white-space:nowrap}
+  .iconbtn{
+    border:1px solid var(--line); background:var(--card); color:var(--text);
+    width:38px;height:38px;border-radius:10px;font-size:17px;line-height:1;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto;
+  }
+  .searchwrap{position:relative;display:flex;align-items:center}
+  #q{
+    width:100%; font-size:19px; padding:14px 44px 14px 14px;
+    border:2px solid var(--line); border-radius:12px;
+    background:var(--card); color:var(--text); box-shadow:var(--shadow);
+  }
+  #q:focus{outline:none;border-color:var(--accent)}
+  #clear{
+    position:absolute; right:6px; width:34px;height:34px;border:0;border-radius:50%;
+    background:transparent;color:var(--muted);font-size:22px;line-height:1;cursor:pointer;display:none;
+  }
+  .chips{display:flex;gap:6px;overflow-x:auto;padding:8px 2px 4px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{
+    flex:0 0 auto;border:1px solid var(--line);background:var(--card);color:var(--muted);
+    padding:7px 12px;border-radius:999px;font-size:14px;white-space:nowrap;cursor:pointer;
+  }
+  .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-text);font-weight:600}
+  main{padding:10px 12px 40px}
+  .sectionhead{
+    font-size:12px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;
+    color:var(--muted);margin:14px 4px 7px;display:flex;align-items:center;gap:8px;
+  }
+  .sectionhead:first-child{margin-top:2px}
+  ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+  li.row{
+    display:flex;align-items:center;gap:11px;background:var(--card);
+    border:1px solid var(--line);border-radius:12px;padding:10px 8px 10px 11px;
+    min-height:62px;cursor:pointer;box-shadow:var(--shadow);
+  }
+  li.row:active{transform:scale(.995);border-color:var(--accent)}
+  .code{
+    flex:0 0 auto;min-width:62px;text-align:center;
+    font:700 22px/1 ui-monospace,SFMono-Regular,Consolas,monospace;
+    font-variant-numeric:tabular-nums;
+    background:var(--code-bg);color:var(--code-text);
+    padding:9px 7px;border-radius:9px;
+  }
+  .info{flex:1 1 auto;min-width:0}
+  .el{font-size:16.5px;font-weight:600;line-height:1.25;overflow-wrap:anywhere}
+  .path{font-size:13px;color:var(--muted);margin-top:2px;overflow-wrap:anywhere}
+  .ba{
+    display:inline-block;margin-top:4px;font-size:11.5px;font-weight:700;letter-spacing:.4px;
+    background:var(--badge);color:var(--badge-text);padding:2px 7px;border-radius:5px;
+  }
+  .star{
+    flex:0 0 auto;width:44px;height:44px;border:0;background:transparent;
+    font-size:21px;line-height:1;color:var(--line);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .star[aria-pressed="true"]{color:var(--fav)}
+  mark{background:rgba(255,208,0,.42);color:inherit;border-radius:2px;padding:0 1px}
+  html[data-theme="dark"] mark{background:rgba(255,208,0,.26);color:#ffe9a8}
+  .empty{text-align:center;color:var(--muted);padding:38px 18px;font-size:15px;line-height:1.6}
+  .empty b{color:var(--text)}
+  .hint{
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:13px 15px;color:var(--muted);font-size:14.5px;line-height:1.55;
+  }
+  .hint b{color:var(--text)}
+  #toast{
+    position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));
+    transform:translate(-50%,14px);background:var(--accent);color:var(--accent-text);
+    padding:12px 20px;border-radius:999px;font-size:16px;font-weight:600;
+    box-shadow:0 6px 20px rgba(0,0,0,.28);opacity:0;pointer-events:none;
+    transition:opacity .16s,transform .16s;z-index:60;
+  }
+  #toast.on{opacity:1;transform:translate(-50%,0)}
+  footer{text-align:center;color:var(--muted);font-size:12px;padding:6px 16px 26px;line-height:1.7}
+  @media (min-width:720px){
+    body{font-size:16px}
+    header{padding-left:max(12px,calc(50vw - 480px));padding-right:max(12px,calc(50vw - 480px))}
+    main,footer{max-width:960px;margin:0 auto}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="titlebar">
+    <h1>Punktcodes</h1>
+    <span class="count" id="count"></span>
+    <button class="iconbtn" id="theme" title="Hell / Dunkel" aria-label="Hell oder Dunkel umschalten">◐</button>
+  </div>
+  <div class="searchwrap">
+    <input id="q" type="search" autocomplete="off" autocorrect="off" autocapitalize="off"
+           spellcheck="false" enterkeyhint="search" placeholder="Suchen: Kabelkanal, Schacht, 824 …">
+    <button id="clear" aria-label="Suche löschen">&times;</button>
+  </div>
+  <div class="chips" id="chips"></div>
+</header>
+
+<main id="out"></main>
+<footer id="foot"></footer>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+
+/* Datensatz: [Code, Art, Gruppe, Element, Berechnungsart] – aus punktcodes.csv erzeugt */
+const RAW = /*__CODES__*/[
+["0","Vermessungspunkte","Allgemein","Kontrollpunkt","Kontrollmessung"],
+["11","Vermessungspunkte","Lage","Festpunkt allgemein","L+H"],
+["12","Vermessungspunkte","Lage","Absteckpunkt_allgemein","-"],
+["13","Vermessungspunkte","Lage","vermarkter Kleinpunkt","-"],
+["16","Vermessungspunkte","Lage","Trigonometrischer Punkt","L"],
+["17","Vermessungspunkte","Lage","Lagefestpunkt","L"],
+["18","Vermessungspunkte","Höhe","Höhenfestpunkt","H"],
+["19","Vermessungspunkte","Höhe","Hilfshöhenpunkt","H"],
+["20","Vermessungspunkte","Lage und Höhe","Lage- und Höhen-Festpunkt","L+H"],
+["50","Allgemeines","Geometrie (rechnerische Festlegung)","Geradenpunkt","-"],
+["51","Allgemeines","Geometrie (rechnerische Festlegung)","Geradenanfang","-"],
+["52","Allgemeines","Geometrie (rechnerische Festlegung)","Geradenende","-"],
+["53","Allgemeines","Geometrie (rechnerische Festlegung)","Kreispunkt","-"],
+["54","Allgemeines","Geometrie (rechnerische Festlegung)","Bogenanfang","-"],
+["55","Allgemeines","Geometrie (rechnerische Festlegung)","Bogenende","-"],
+["56","Allgemeines","Geometrie (rechnerische Festlegung)","Kreismittelpunkt","-"],
+["57","Allgemeines","Geometrie (rechnerische Festlegung)","Tangentenschnittpunkt","-"],
+["58","Allgemeines","Geometrie (rechnerische Festlegung)","Radiuswechsel","-"],
+["59","Allgemeines","Geometrie (rechnerische Festlegung)","Schnittpunkt","-"],
+["60","Allgemeines","Geometrie (rechnerische Festlegung)","Klotoidenpunkt","-"],
+["61","Allgemeines","Geometrie (rechnerische Festlegung)","Klotoidenanfang","-"],
+["62","Allgemeines","Geometrie (rechnerische Festlegung)","Klotoidenende","-"],
+["63","Allgemeines","Geometrie (rechnerische Festlegung)","Weichenanfang","-"],
+["64","Allgemeines","Geometrie (rechnerische Festlegung)","Weichenmitte","-"],
+["65","Allgemeines","Geometrie (rechnerische Festlegung)","Weichenende","-"],
+["66","Allgemeines","Geometrie (rechnerische Festlegung)","WE_Zweiggleis","-"],
+["68","Allgemeines","Geometrie (rechnerische Festlegung)","Hilfspunkt","-"],
+["69","Allgemeines","Geometrie (rechnerische Festlegung)","SP_Gerade_Gerade","-"],
+["70","Allgemeines","Geometrie (rechnerische Festlegung)","SP_Gerade_Kreis","-"],
+["71","Allgemeines","Geometrie (rechnerische Festlegung)","SP_Gerade_Klotoide","-"],
+["72","Allgemeines","Geometrie (rechnerische Festlegung)","SP_Kreis_Kreis","-"],
+["73","Allgemeines","Geometrie (rechnerische Festlegung)","SP_Kreis_Klotoide","-"],
+["100","Vermessungspunkte","Allgemein","Folgepunkt","-"],
+["101","Vermessungspunkte","Allgemein","Kontrollpunkt","Kontrollmessung"],
+["112","Vermessungspunkte","Lage","freier Standpunkt","-"],
+["113","Vermessungspunkte","Lage","Richtungsanschluß","-"],
+["114","Vermessungspunkte","Lage","Kontrolle_Richtungsanschluß","Kontrollmessung"],
+["121","Vermessungspunkte","Lage","Marke_an_Schiene","-"],
+["122","Vermessungspunkte","Lage","Pflock_mit_Nagel","-"],
+["123","Vermessungspunkte","Lage","Farbkreuz","-"],
+["124","Vermessungspunkte","Lage","Nagel_oder_Pinne","-"],
+["125","Vermessungspunkte","Lage","Messingmarke","-"],
+["151","Vermessungspunkte","Lage","Gleisfestpunkt_Mastbolzen_links","L+H"],
+["152","Vermessungspunkte","Lage","Gleisfestpunkt_Mastbolzen_rechts","L+H"],
+["153","Vermessungspunkte","Lage","Gleisfestpunkt_Stehbolzen_links","L+H"],
+["154","Vermessungspunkte","Lage","Gleisfestpunkt_Stehbolzen_rechts","L+H"],
+["155","Vermessungspunkte","Lage","Gleisfestpunkt_Bodenvermark_links","L+H"],
+["156","Vermessungspunkte","Lage","Gleisfestpunkt_Bodenvermark_rechts","L+H"],
+["157","Vermessungspunkte","Lage","Gleisfestpunkt_Tunnelbolzen_links","L+H"],
+["158","Vermessungspunkte","Lage","Gleisfestpunkt_Tunnelbolzen_rechts","L+H"],
+["171","Vermessungspunkte","Projektspezifische Codes","Projekt_Code_01","-"],
+["172","Vermessungspunkte","Projektspezifische Codes","Projekt_Code_02","-"],
+["173","Vermessungspunkte","Projektspezifische Codes","Projekt_Code_03","-"],
+["174","Vermessungspunkte","Projektspezifische Codes","Projekt_Code_04","-"],
+["175","Vermessungspunkte","Projektspezifische Codes","Projekt_Code_05","-"],
+["176","Vermessungspunkte","Projektspezifische Codes","Projekt_Code_06","-"],
+["177","Vermessungspunkte","Projektspezifische Codes","Projekt_Code_07","-"],
+["178","Vermessungspunkte","Projektspezifische Codes","Projekt_Code_08","-"],
+["179","Vermessungspunkte","Projektspezifische Codes","Projekt_Code_09","-"],
+["180","Vermessungspunkte","Projektspezifische Codes","Projekt_Code_10","-"],
+["181","Vermessungspunkte","Projektspezifische Codes","Projekt_Code_11","-"],
+["182","Vermessungspunkte","Projektspezifische Codes","Projekt_Code_12","-"],
+["183","Vermessungspunkte","Projektspezifische Codes","Projekt_Code_13","-"],
+["184","Vermessungspunkte","Projektspezifische Codes","Projekt_Code_14","-"],
+["185","Vermessungspunkte","Projektspezifische Codes","Projekt_Code_15","-"],
+["186","Vermessungspunkte","Projektspezifische Codes","Projekt_Code_16","-"],
+["187","Vermessungspunkte","Projektspezifische Codes","Projekt_Code_17","-"],
+["188","Vermessungspunkte","Projektspezifische Codes","Projekt_Code_18","-"],
+["189","Vermessungspunkte","Projektspezifische Codes","Projekt_Code_19","-"],
+["190","Vermessungspunkte","Projektspezifische Codes","Projekt_Code_20","-"],
+["210","Grenzen","Grenzmarken","Grenzmarken","-"],
+["211","Grenzen","Grenzmarken","Grenzpunkt_unverm.","-"],
+["212","Grenzen","Grenzmarken","Grenzpunkt_vermarkt","-"],
+["213","Grenzen","Grenzmarken","Landesgrenze","-"],
+["220","Grenzen","politische Grenzen","politische_Grenzen","-"],
+["221","Grenzen","politische Grenzen","Staatsgrenze","-"],
+["222","Grenzen","politische Grenzen","Bundeslandgrenze","-"],
+["223","Grenzen","politische Grenzen","Regierungsbezirk","-"],
+["224","Grenzen","politische Grenzen","Stadtkreis","-"],
+["225","Grenzen","politische Grenzen","Landkreis","-"],
+["226","Grenzen","politische Grenzen","Gemeinde","-"],
+["227","Grenzen","politische Grenzen","Gemeinde_keine_Gemarkung","-"],
+["230","Grenzen","Katastergrenze","Katastergrenzen","-"],
+["231","Grenzen","Katastergrenze","Gemarkungsgrenze","-"],
+["232","Grenzen","Katastergrenze","Flurgrenze","-"],
+["233","Grenzen","Katastergrenze","Flurstücksgrenze","-"],
+["234","Grenzen","Katastergrenze","strittige_Grenze","-"],
+["240","Grenzen","Bahngrenze","Bahngrenzen","-"],
+["241","Grenzen","Bahngrenze","Vermögen_Grundbuch","-"],
+["242","Grenzen","Bahngrenze","Anliegergewässer","-"],
+["245","Grenzen","Bahngrenze","Direktion","-"],
+["246","Grenzen","Bahngrenze","Regionalabteilung","-"],
+["247","Grenzen","Bahngrenze","Dienststelle","-"],
+["248","Grenzen","Bahngrenze","Baubezirk","-"],
+["249","Grenzen","Bahngrenze","Gleisanschluß","-"],
+["250","Grenzen","Bahngrenze","Grenzanlagen_allgemein","-"],
+["251","Grenzen","sonstige Grenzen","Nutzungsarten","-"],
+["252","Grenzen","sonstige Grenzen","Belastungsgrenze","-"],
+["253","Grenzen","sonstige Grenzen","Hochwasser","-"],
+["254","Grenzen","sonstige Grenzen","Naturschutzgebiet","-"],
+["255","Grenzen","sonstige Grenzen","Landschaftsschutzgebiet","-"],
+["256","Grenzen","sonstige Grenzen","Wasserschutzgebiet","-"],
+["257","Grenzen","sonstige Grenzen","Lärmschutzgebiet","-"],
+["258","Grenzen","sonstige Grenzen","topogr_Begrenzung","-"],
+["259","Grenzen","sonstige Grenzen","Begrenzung_überdeckt","-"],
+["260","Grenzen","sonstige Grenzen","Zollgrenze","-"],
+["261","Grenzen","sonstige Grenzen","Zusammengehörigkeit","-"],
+["270","Grenzen","sonstige Grenzen","Einfriedung_allgemein","-"],
+["271","Grenzen","sonstige Grenzen","Zaun","-"],
+["273","Grenzen","Einfriedung / Mauer","Bretterwand","-"],
+["274","Grenzen","Einfriedung / Mauer","Grenzmauer","-"],
+["276","Grenzen","Einfriedung / Mauer","Hecke","-"],
+["277","Grenzen","Einfriedung / Mauer","Tür","-"],
+["278","Grenzen","Einfriedung / Mauer","Tor","-"],
+["279","Grenzen","Einfriedung / Mauer","Geländer","-"],
+["280","Grenzen","Einfriedung / Mauer","Mauer_allgemein","-"],
+["281","Grenzen","Einfriedung / Mauer","freistehende_Mauer","-"],
+["282","Grenzen","Einfriedung / Mauer","Brüstungsmauer","-"],
+["283","Grenzen","Einfriedung / Mauer","Stützmauer","-"],
+["284","Grenzen","Einfriedung / Mauer","Mauer_mit_Anlauf","-"],
+["285","Grenzen","Einfriedung / Mauer","Mauer_geneigt_oben","-"],
+["286","Grenzen","Einfriedung / Mauer","Mauer_geneigt_unten","-"],
+["288","Grenzen","Einfriedung / Mauer","Spundwand","-"],
+["289","Grenzen","Einfriedung / Mauer","Lärmschutzwand","-"],
+["300","Gebäude","bauliche Anlagen","Gebäude_allgemein","-"],
+["301","Gebäude","bauliche Anlagen","Schuppen","-"],
+["302","Gebäude","bauliche Anlagen","Garage","-"],
+["303","Gebäude","bauliche Anlagen","Gewächshaus","-"],
+["304","Gebäude","bauliche Anlagen","Laube","-"],
+["305","Gebäude","bauliche Anlagen","Wohnhaus","-"],
+["306","Gebäude","bauliche Anlagen","Hochhaus","-"],
+["307","Gebäude","bauliche Anlagen","Wirtschaftsgebäude","-"],
+["308","Gebäude","bauliche Anlagen","öffentliches_Gebäude","-"],
+["309","Gebäude","bauliche Anlagen","Kirche","-"],
+["310","Gebäude","bauliche Besonderheiten","bauliche_Besonderheiten","-"],
+["311","Gebäude","bauliche Besonderheiten","Gebäude_auf_Stützen","-"],
+["312","Gebäude","bauliche Besonderheiten","Nische","-"],
+["313","Gebäude","bauliche Besonderheiten","Durchgang","-"],
+["314","Gebäude","bauliche Besonderheiten","Vorbau_Vorsprung","-"],
+["315","Gebäude","bauliche Besonderheiten","Loggia","-"],
+["316","Gebäude","bauliche Besonderheiten","Überdachung","-"],
+["317","Gebäude","bauliche Besonderheiten","Balkon_Erker","-"],
+["318","Gebäude","bauliche Besonderheiten","offene_Halle","-"],
+["319","Gebäude","bauliche Besonderheiten","unterirdisches_Gebäude","-"],
+["320","Gebäude","Bahngebäude","Bahngebäude_allgemein","-"],
+["321","Gebäude","Bahngebäude","Empfangsgebäude","-"],
+["322","Gebäude","Bahngebäude","Aufsicht_Bahnwärter","-"],
+["323","Gebäude","Bahngebäude","Warteraum","-"],
+["324","Gebäude","Bahngebäude","Kiosk","-"],
+["325","Gebäude","Bahngebäude","Werkstatt_Abstellgeb","-"],
+["326","Gebäude","Bahngebäude","Trafohaus","-"],
+["327","Gebäude","Bahngebäude","Lokschuppen","-"],
+["328","Gebäude","Bahngebäude","Gleiswaagenhaus","-"],
+["329","Gebäude","Bahngebäude","bahneigenes_Gebäude","-"],
+["330","Gebäude","Stellwerk","Stellwerk_allgemein","-"],
+["331","Gebäude","Stellwerk","Stellwerk_mechanisch","-"],
+["332","Gebäude","Stellwerk","Stellwerk_ü_2m_ü_SO","-"],
+["333","Gebäude","Stellwerk","Stellwerk_elektrisch","-"],
+["334","Gebäude","Stellwerk","Stellwerk_ü_2m_ü_SO","-"],
+["335","Gebäude","Stellwerk","Gleisbildstellwerk","-"],
+["336","Gebäude","Stellwerk","Stellwerk_außer_Betr","-"],
+["338","Gebäude","Stellwerk","Schaltraum","-"],
+["339","Gebäude","Stellwerk","Anbau","-"],
+["340","Gebäude","Kunstbauten","Kunstbauwerk_allgemein","-"],
+["341","Gebäude","Kunstbauten","Fundament","-"],
+["342","Gebäude","Kunstbauten","Widerlager","-"],
+["343","Gebäude","Kunstbauten","Kammermauer","-"],
+["344","Gebäude","Kunstbauten","Flügelmauer_unten","-"],
+["345","Gebäude","Kunstbauten","Flügelmauer_oben","-"],
+["346","Gebäude","Kunstbauten","Pfeiler","-"],
+["347","Gebäude","Kunstbauten","Brücke","-"],
+["348","Gebäude","Kunstbauten","Tunnel","-"],
+["349","Gebäude","Kunstbauten","Durchlaß","-"],
+["350","Gebäude","Kunstbauten","Düker","-"],
+["351","Gebäude","Kunstbauten","Turm_eckig","-"],
+["352","Gebäude","Kunstbauten","Turm_rund","-"],
+["353","Gebäude","Kunstbauten","Esse_eckig","-"],
+["354","Gebäude","Kunstbauten","Esse_rund","-"],
+["356","Gebäude","Kunstbauten","Denkmal","-"],
+["357","Gebäude","Kunstbauten","Ruine","-"],
+["359","Gebäude","Kunstbauten","Dach","-"],
+["360","Gebäude","Treppe","Treppe_allgemein","-"],
+["361","Gebäude","Treppe","Treppe_unten","-"],
+["362","Gebäude","Treppe","Treppe_oben","-"],
+["363","Gebäude","Treppe","Rolltreppe_unten","-"],
+["364","Gebäude","Treppe","Rolltreppe_oben","-"],
+["365","Gebäude","Aufzug","Aufzug_allgemein","-"],
+["366","Gebäude","Aufzug","Krankenaufzug","-"],
+["367","Gebäude","Aufzug","Lastenaufzug","-"],
+["368","Gebäude","Aufzug","Personenaufzug","-"],
+["370","Gebäude","Industrieanlagen","Industrieanlagen_allgemein","-"],
+["371","Gebäude","Industrieanlagen","Kesselanlage","-"],
+["372","Gebäude","Industrieanlagen","Tanksäule","-"],
+["373","Gebäude","Industrieanlagen","Bohrloch","-"],
+["374","Gebäude","Industrieanlagen","Bohrturm","-"],
+["375","Gebäude","Industrieanlagen","Erdgasförderstelle","-"],
+["376","Gebäude","Industrieanlagen","Windmotor","-"],
+["377","Gebäude","Industrieanlagen","Bergwerk","-"],
+["378","Gebäude","Industrieanlagen","Schacht","-"],
+["379","Gebäude","Industrieanlagen","Stollenmund","-"],
+["380","Gebäude","Förderanlagen","Kran_allgemein","-"],
+["381","Gebäude","Förderanlagen","Auslegerkran","-"],
+["382","Gebäude","Förderanlagen","Portaldrehkran_fest","-"],
+["383","Gebäude","Förderanlagen","Portaldrehkran_fahrbar","-"],
+["384","Gebäude","Förderanlagen","Portalkran_fest","-"],
+["385","Gebäude","Förderanlagen","Portalkran_fahrbar","-"],
+["386","Gebäude","Förderanlagen","Brückenkran","-"],
+["387","Gebäude","Förderanlagen","Kabelkran","-"],
+["388","Gebäude","Förderanlagen","Laufkran","-"],
+["390","Gebäude","Förderanlagen","Förderband","-"],
+["391","Gebäude","Förderanlagen","Brückenwaage","-"],
+["410","Verkehrsanlagen","Informationssysteme","Informationssysteme_allgemein","-"],
+["411","Verkehrsanlagen","Informationssysteme","Bahntelefon_Haus","-"],
+["412","Verkehrsanlagen","Informationssysteme","Bahntelefon_ohne_Symbol","-"],
+["413","Verkehrsanlagen","Informationssysteme","Bahntelefon_Stütze","-"],
+["414","Verkehrsanlagen","Informationssysteme","öffentl_Telefonzelle","-"],
+["415","Verkehrsanlagen","Informationssysteme","Telefonzelle","-"],
+["416","Verkehrsanlagen","Informationssysteme","Telefon_Stütze","-"],
+["417","Verkehrsanlagen","Informationssysteme","Telefon_Wand","-"],
+["418","Verkehrsanlagen","Informationssysteme","Uhr_hängend","-"],
+["419","Verkehrsanlagen","Informationssysteme","Uhr_auf_Ständer","-"],
+["420","Verkehrsanlagen","Informationssysteme","Uhr_auf_Säule","-"],
+["421","Verkehrsanlagen","Informationssysteme","Notrufsäule","-"],
+["422","Verkehrsanlagen","Informationssysteme","Sirene","-"],
+["423","Verkehrsanlagen","Informationssysteme","Luftfahrtfeuer","-"],
+["424","Verkehrsanlagen","Informationssysteme","Lautsprecher_hängend","-"],
+["425","Verkehrsanlagen","Informationssysteme","Lautsprecher_stehend","-"],
+["426","Verkehrsanlagen","Informationssysteme","Überwachungskamera_hängend","-"],
+["427","Verkehrsanlagen","Informationssysteme","Überwachungskamera_stehend","-"],
+["428","Verkehrsanlagen","Informationssysteme","Anschlagsäule","-"],
+["429","Verkehrsanlagen","sonstige Anlagen","Tafel_Anfang_Ende","-"],
+["430","Verkehrsanlagen","sonstige Anlagen","sonstige_Anlagen","-"],
+["431","Verkehrsanlagen","sonstige Anlagen","Sitzbank","-"],
+["432","Verkehrsanlagen","sonstige Anlagen","Einfassung","-"],
+["433","Verkehrsanlagen","sonstige Anlagen","Automaten","554"],
+["434","Verkehrsanlagen","sonstige Anlagen","Pergola","-"],
+["435","Verkehrsanlagen","sonstige Anlagen","Entwerter","576"],
+["436","Verkehrsanlagen","sonstige Anlagen","Briefkasten","-"],
+["437","Verkehrsanlagen","sonstige Anlagen","Papierkorb/Müllbehälter","870"],
+["438","Verkehrsanlagen","sonstige Anlagen","Schild auf Ständer","-"],
+["439","Verkehrsanlagen","sonstige Anlagen","Fahnenstange","-"],
+["500","Verkehrsanlagen","Straßen","Verkehrsanlagen_allgemein","-"],
+["501","Verkehrsanlagen","Straßen","Bordkante","-"],
+["502","Verkehrsanlagen","Straßen","Fahrbahn_Pflaster","-"],
+["503","Verkehrsanlagen","Straßen","Fahrbahn_Asphalt","-"],
+["504","Verkehrsanlagen","Straßen","Fahrbahn_Beton","-"],
+["505","Verkehrsanlagen","Straßen","Fahrbahn_Platten_Kunststoff","-"],
+["507","Verkehrsanlagen","Straßen","Fahrbahnmarkierung","-"],
+["509","Verkehrsanlagen","Straßen","Hochstraße","-"],
+["510","Verkehrsanlagen","Wege","Wege_allgemein","-"],
+["511","Verkehrsanlagen","Wege","Feldweg","-"],
+["512","Verkehrsanlagen","Wege","Fußweg_gepflastert","-"],
+["513","Verkehrsanlagen","Wege","Fußweg_Asphalt","-"],
+["514","Verkehrsanlagen","Wege","Fußweg_Beton","-"],
+["515","Verkehrsanlagen","Wege","Fußweg_Stahlplatten","-"],
+["516","Verkehrsanlagen","Wege","Fußweg_Holz","-"],
+["517","Verkehrsanlagen","Wege","Knüppeldamm","-"],
+["520","Verkehrsanlagen","Verkehrszeichen","Verkehrszeichen_allgemein","-"],
+["521","Verkehrsanlagen","Verkehrszeichen","Ampel","-"],
+["522","Verkehrsanlagen","Verkehrszeichen","Ampel_zweideutig","-"],
+["523","Verkehrsanlagen","Verkehrszeichen","Verkehrsschild","-"],
+["524","Verkehrsanlagen","Verkehrszeichen","Haltestelle","-"],
+["525","Verkehrsanlagen","Steine","Kilometereinteilung_allgemein","-"],
+["526","Verkehrsanlagen","Steine","Straßenkilometer","-"],
+["527","Verkehrsanlagen","Steine","Achsstein","-"],
+["528","Verkehrsanlagen","Steine","Kilometerstein","-"],
+["529","Verkehrsanlagen","Steine","Kilometertafel","-"],
+["530","Verkehrsanlagen","Wasserwirtschaftsanlagen","Wasser_allgemein","-"],
+["531","Verkehrsanlagen","Wasserwirtschaftsanlagen","Wehr","-"],
+["532","Verkehrsanlagen","Wasserwirtschaftsanlagen","Schleuse","-"],
+["535","Verkehrsanlagen","Stahlbrücke","Stahlbrücke_allgemein","-"],
+["536","Verkehrsanlagen","Stahlbrücke","Fußgängerbrücke","-"],
+["537","Verkehrsanlagen","Stahlbrücke","Signalbrücke","-"],
+["538","Verkehrsanlagen","Stahlbrücke","Rohrbrücke","-"],
+["539","Verkehrsanlagen","Stahlbrücke","Bandbrücke","-"],
+["540","Verkehrsanlagen","Stützen","Stütze_allgemein","-"],
+["541","Verkehrsanlagen","Stützen","Stütze_eckig","-"],
+["542","Verkehrsanlagen","Stützen","Stütze_ohne_Symbol","-"],
+["543","Verkehrsanlagen","Stützen","Stütze_rund","-"],
+["545","Verkehrsanlagen","Träger","Träger_allgemein","-"],
+["546","Verkehrsanlagen","Träger","Träger","-"],
+["547","Verkehrsanlagen","Träger","Verkleidung","-"],
+["549","Verkehrsanlagen","Träger","Leitplanke","-"],
+["550","Eisenbahnanlagen","Gleisachsen (Bahnarten)","Gleisachsen_allgemein","-"],
+["551","Eisenbahnanlagen","Gleisachsen (Bahnarten)","U-Bahn","-"],
+["552","Eisenbahnanlagen","Gleisachsen (Bahnarten)","U_Bahn_unterirdisch","-"],
+["555","Eisenbahnanlagen","Gleisachsen (Bahnarten)","Straßenbahn","-"],
+["556","Eisenbahnanlagen","Gleisachsen (Bahnarten)","Zahnradbahn","-"],
+["557","Eisenbahnanlagen","Gleisachsen (Bahnarten)","Personenseilbahn","-"],
+["558","Eisenbahnanlagen","Gleisachsen (Bahnarten)","Materialseilbahn","-"],
+["560","Eisenbahnanlagen","Gleisanlagen / Bremsen","Gleisanlagen_allgemein","-"],
+["570","Eisenbahnanlagen","Gleisanlagen / Bremsen","Balkenbremse_einseitig","-"],
+["571","Eisenbahnanlagen","Gleisanlagen / Bremsen","Balkenbremse_zweiseitig","-"],
+["572","Eisenbahnanlagen","Gleisanlagen / Bremsen","Vor_Haupt_Nachbremse","-"],
+["573","Eisenbahnanlagen","Gleisanlagen / Bremsen","Haupt_Nachbremse","-"],
+["574","Eisenbahnanlagen","Gleisanlagen / Bremsen","Hemmschuhauswurfbremse","-"],
+["575","Eisenbahnanlagen","Gleisanlagen / Bremsen","Bremselement_einseitig","-"],
+["576","Eisenbahnanlagen","Gleisanlagen / Bremsen","Bremselement_zweiseitig","-"],
+["577","Eisenbahnanlagen","Gleisanlagen / Bremsen","Festprellbock","-"],
+["578","Eisenbahnanlagen","Gleisanlagen / Bremsen","Bremsprellbock","-"],
+["579","Eisenbahnanlagen","Gleisanlagen / Bremsen","abklappbarer_Prellbock","-"],
+["580","Eisenbahnanlagen","Gleisanlagen / Bremsen","Rollbockanlage","-"],
+["581","Eisenbahnanlagen","Gleisanlagen / Bremsen","Gleiswaage","-"],
+["582","Eisenbahnanlagen","Gleisanlagen / Bremsen","Gleissperre_fernbedient_li","-"],
+["583","Eisenbahnanlagen","Gleisanlagen / Bremsen","Gleissperre_fernbedient_re","-"],
+["584","Eisenbahnanlagen","Gleisanlagen / Bremsen","Gleissperre_ortsbedient_li","-"],
+["585","Eisenbahnanlagen","Gleisanlagen / Bremsen","Gleissperre_ortbedient_re","-"],
+["586","Eisenbahnanlagen","Gleisanlagen / Bremsen","Entgleisungsvorrichtung","-"],
+["587","Eisenbahnanlagen","Gleisanlagen / Bremsen","Achszähler","-"],
+["588","Eisenbahnanlagen","Gleisanlagen / Bremsen","Schmierautomat","-"],
+["589","Eisenbahnanlagen","Gleisanlagen / Bremsen","Streckenanschlag","-"],
+["590","Eisenbahnanlagen","Gleisanlagen / Bremsen","Grube","-"],
+["591","Eisenbahnanlagen","Gleisanlagen / Bremsen","Kippanlage","-"],
+["592","Eisenbahnanlagen","Gleisanlagen / Bremsen","Schiebebühne","-"],
+["593","Eisenbahnanlagen","Gleisanlagen / Bremsen","Drehscheibenrand","-"],
+["594","Eisenbahnanlagen","Gleisanlagen / Bremsen","Drehscheibenmitte","-"],
+["595","Eisenbahnanlagen","Gleisanlagen / Bremsen","Spillanlage_stehend","-"],
+["596","Eisenbahnanlagen","Gleisanlagen / Bremsen","Spillanlage_liegend","-"],
+["597","Eisenbahnanlagen","Gleisanlagen / Bremsen","Straßenrolleranlage","-"],
+["598","Eisenbahnanlagen","Gleisanlagen / Bremsen","Waschanlage","-"],
+["599","Eisenbahnanlagen","Gleisanlagen / Bremsen","Lademaß","-"],
+["600","Eisenbahnanlagen","Schienen","Gleislatte","Gleislatte"],
+["601","Eisenbahnanlagen","Rampe","Rampe_unten","-"],
+["602","Eisenbahnanlagen","Rampe","Rampe_oben","-"],
+["603","Eisenbahnanlagen","Rampe","Laderampe","-"],
+["604","Eisenbahnanlagen","Rampe","Ladebühne","-"],
+["605","Eisenbahnanlagen","Rampe","hoher_Laufsteg","-"],
+["610","Eisenbahnanlagen","Schienen","Schienenmitte_Schienenoberkante","-"],
+["611","Eisenbahnanlagen","Schienen","Gleiswinkel_lotrecht","-"],
+["615","Eisenbahnanlagen","Schienen","Kranbahnschienenmitte","-"],
+["616","Eisenbahnanlagen","Schienen","Drehscheibenkranz","-"],
+["620","Eisenbahnanlagen","Gleisachse","Gleisachse gemessen","-"],
+["621","Eisenbahnanlagen","Gleisachse","Gleisachse","-"],
+["622","Eisenbahnanlagen","Gleisachse","Achse_Hauptgleis_unterird","-"],
+["623","Eisenbahnanlagen","Gleisachse","Achse_Nebengleis","-"],
+["624","Eisenbahnanlagen","Gleisachse","Achse_Nebengleis_unterird","-"],
+["625","Eisenbahnanlagen","Gleisachse","Achse_Anschlußbahn","-"],
+["626","Eisenbahnanlagen","Gleisachse","Achse_Anschlußbahn_unterir","-"],
+["627","Eisenbahnanlagen","Gleisachse","Achse_S_Bahn","-"],
+["628","Eisenbahnanlagen","Gleisachse","Achse_S_Bahn_unterirdisch","-"],
+["630","Eisenbahnanlagen","Weichenanfang","Weichenanfang","-"],
+["631","Eisenbahnanlagen","Weichenanfang","WA_EW","-"],
+["632","Eisenbahnanlagen","Weichenanfang","WA_BW","-"],
+["633","Eisenbahnanlagen","Weichenanfang","WA_DW","-"],
+["634","Eisenbahnanlagen","Weichenanfang","Kreuzung","-"],
+["635","Eisenbahnanlagen","Weichenanfang","Bogenkreuzung","-"],
+["636","Eisenbahnanlagen","Weichenanfang","Kreuzungsweiche_EKW","-"],
+["637","Eisenbahnanlagen","Weichenanfang","Kreuzungsweiche_DKW","-"],
+["638","Eisenbahnanlagen","Weichenanfang","Bogen_EKW","-"],
+["639","Eisenbahnanlagen","Weichenanfang","Bogen_DKW","-"],
+["640","Eisenbahnanlagen","Weichenmitte","Weichenmitte","-"],
+["641","Eisenbahnanlagen","Weichenmitte","WM_EW","-"],
+["642","Eisenbahnanlagen","Weichenmitte","WM_BW","-"],
+["643","Eisenbahnanlagen","Weichenmitte","WM_DW","-"],
+["644","Eisenbahnanlagen","Weichenmitte","WM_Kreuzung","-"],
+["645","Eisenbahnanlagen","Weichenmitte","WM_Bogenkreuzung","-"],
+["646","Eisenbahnanlagen","Weichenmitte","WM_Kreuzungsweiche_EKW","-"],
+["647","Eisenbahnanlagen","Weichenmitte","WM_Kreuzungsweiche_DKW","-"],
+["648","Eisenbahnanlagen","Weichenmitte","WM_Bogenkreuzungsweiche_EKW","-"],
+["649","Eisenbahnanlagen","Weichenmitte","WM_Bogenkreuzungsweiche_DKW","-"],
+["650","Eisenbahnanlagen","Weichenende","WE","-"],
+["651","Eisenbahnanlagen","Weichenende","WE_fernbedient","-"],
+["652","Eisenbahnanlagen","Weichenende","WE_ortsbedient","-"],
+["660","Eisenbahnanlagen","Weichenende/Zweiggleis","WEZ","-"],
+["661","Eisenbahnanlagen","Weichenende/Zweiggleis","WEZ_fernbedient","-"],
+["662","Eisenbahnanlagen","Weichenende/Zweiggleis","WEZ_ortsbedient","-"],
+["666","Eisenbahnanlagen","Fahrtrichtung","Richtungspfeil_einfach","-"],
+["667","Eisenbahnanlagen","Fahrtrichtung","Richtungspfeil_doppelt","-"],
+["668","Eisenbahnanlagen","Fahrtrichtung","Richtungspfeil_dreifach","-"],
+["669","Eisenbahnanlagen","Fahrtrichtung","Richtungspfeil_S_B","-"],
+["670","Allgemeines","Geometrie (rechnerische Festlegung)","NW","-"],
+["671","Allgemeines","Geometrie (rechnerische Festlegung)","AA","-"],
+["672","Allgemeines","Geometrie (rechnerische Festlegung)","AE","-"],
+["673","Allgemeines","Geometrie (rechnerische Festlegung)","RA","-"],
+["674","Allgemeines","Geometrie (rechnerische Festlegung)","RE","-"],
+["675","Eisenbahnanlagen","Bahnsteig","Bahnsteig_allgemein","-"],
+["676","Eisenbahnanlagen","Bahnsteig","Bahnst_feste_Kante","-"],
+["677","Eisenbahnanlagen","Bahnsteig","Bahnst_Profilpunkt","-"],
+["678","Eisenbahnanlagen","Bahnsteig","Bahnst_ohne_feste_Kante","-"],
+["679","Eisenbahnanlagen","Bahnsteig","Weberbord_Tritt","-"],
+["680","Eisenbahnanlagen","Bahnsteig","BÜ_allgemein","-"],
+["681","Eisenbahnanlagen","Bahnübergangssicherung","Bake_3streifig_li","-"],
+["682","Eisenbahnanlagen","Bahnübergangssicherung","Bake_3streifig_re","-"],
+["683","Eisenbahnanlagen","Bahnübergangssicherung","Bake_2streifig_li","-"],
+["684","Eisenbahnanlagen","Bahnübergangssicherung","Bake_2streifig_re","-"],
+["685","Eisenbahnanlagen","Bahnübergangssicherung","Bake_1streifig_li","-"],
+["686","Eisenbahnanlagen","Bahnübergangssicherung","Bake_1streifig_re","-"],
+["687","Eisenbahnanlagen","Bahnübergangssicherung","Andreaskreuz","-"],
+["688","Eisenbahnanlagen","Bahnübergangssicherung","rotes_Blinklicht","-"],
+["689","Eisenbahnanlagen","Bahnübergangssicherung","Blinklicht_Halbschranke","-"],
+["690","Eisenbahnanlagen","Bahnübergangssicherung","Schranken_allgemein","-"],
+["691","Eisenbahnanlagen","Bahnübergangssicherung","Schranke","-"],
+["692","Eisenbahnanlagen","Schranken","Halbschranken","-"],
+["693","Eisenbahnanlagen","Schranken","Schrankenkasten","-"],
+["694","Eisenbahnanlagen","Schranken","Drehschranken_Drehpunkt","-"],
+["695","Eisenbahnanlagen","Schranken","Drehschranken_Radius","-"],
+["696","Eisenbahnanlagen","Schranken","Schiebeschranke","-"],
+["697","Eisenbahnanlagen","Schranken","Drehkreuz","-"],
+["700","Eisenbahnanlagen","Formsignale","Formsignal","-"],
+["701","Eisenbahnanlagen","Formsignale","Vorsignal_2begriffig","-"],
+["702","Eisenbahnanlagen","Formsignale","Vorsignal_3begriffig","-"],
+["703","Eisenbahnanlagen","Formsignale","Hauptsignal_1flügelg","-"],
+["704","Eisenbahnanlagen","Formsignale","Hauptsignal_2flügelg","-"],
+["710","Eisenbahnanlagen","Lichtsignale","Lichtsignale_allgemein","-"],
+["711","Eisenbahnanlagen","Lichtsignale","Lichtvorsignal","-"],
+["712","Eisenbahnanlagen","Lichtsignale","Vorsignal_Wiederholer","-"],
+["713","Eisenbahnanlagen","Lichtsignale","Hauptsignal","-"],
+["714","Eisenbahnanlagen","Lichtsignale","Hauptsignalverbinder","-"],
+["720","Eisenbahnanlagen","Zusatzsignale","Zusatzsignale_allgemein","-"],
+["721","Eisenbahnanlagen","Zusatzsignale","Richtungsanzeiger","-"],
+["722","Eisenbahnanlagen","Zusatzsignale","Richtungsvoranzeiger","-"],
+["723","Eisenbahnanlagen","Zusatzsignale","Geschwindigkeitsanzeiger","-"],
+["724","Eisenbahnanlagen","Zusatzsignale","Geschwindigkeitsvoranzeiger","-"],
+["725","Eisenbahnanlagen","Zusatzsignale","Beschleunigungsanzeiger","-"],
+["726","Eisenbahnanlagen","Zusatzsignale","Verzögerungsanzeiger","-"],
+["727","Eisenbahnanlagen","Zusatzsignale","Gleisewechselanzeiger","-"],
+["728","Eisenbahnanlagen","Ersatz-/Neben-/sonstige Signale","M_Tafel","-"],
+["730","Eisenbahnanlagen","Ersatz-/Neben-/sonstige Signale","Haltetafel","-"],
+["731","Eisenbahnanlagen","Ersatz-/Neben-/sonstige Signale","Vorsignalbake_1streifig","-"],
+["732","Eisenbahnanlagen","Ersatz-/Neben-/sonstige Signale","Vorsignalbake_2streifig","-"],
+["733","Eisenbahnanlagen","Ersatz-/Neben-/sonstige Signale","Vorsignalbake_3streifig","-"],
+["734","Eisenbahnanlagen","Ersatz-/Neben-/sonstige Signale","Lichtformsignal","-"],
+["735","Eisenbahnanlagen","Ersatz-/Neben-/sonstige Signale","Lichtformsignal","-"],
+["736","Eisenbahnanlagen","Ersatz-/Neben-/sonstige Signale","734_verkürzt_Bremsweg","-"],
+["737","Eisenbahnanlagen","Ersatz-/Neben-/sonstige Signale","735_verkürzt_Bremsweg","-"],
+["738","Eisenbahnanlagen","Ersatz-/Neben-/sonstige Signale","Kreuztafel","-"],
+["739","Eisenbahnanlagen","Ersatz-/Neben-/sonstige Signale","Trapeztafel","-"],
+["740","Eisenbahnanlagen","Ersatz-/Neben-/sonstige Signale","Haltepunkttafel","-"],
+["741","Eisenbahnanlagen","Ersatz-/Neben-/sonstige Signale","Schachbretttafel","-"],
+["742","Eisenbahnanlagen","Ersatz-/Neben-/sonstige Signale","Brandfackeltafel","-"],
+["743","Eisenbahnanlagen","Ersatz-/Neben-/sonstige Signale","Permessivendtafel","-"],
+["744","Eisenbahnanlagen","Ersatz-/Neben-/sonstige Signale","Rückfallweiche","-"],
+["745","Eisenbahnanlagen","Ersatz-/Neben-/sonstige Signale","Ankündigungsbake","-"],
+["746","Eisenbahnanlagen","Ersatz-/Neben-/sonstige Signale","Schneepflugtafel_heben","-"],
+["747","Eisenbahnanlagen","Ersatz-/Neben-/sonstige Signale","Schneepflugtafel_senken","-"],
+["748","Eisenbahnanlagen","Ersatz-/Neben-/sonstige Signale","Isolierzeichen","-"],
+["749","Eisenbahnanlagen","Ersatz-/Neben-/sonstige Signale","Grenzzeichen","-"],
+["750","Eisenbahnanlagen","Rangierdienstsignale","Rangiersignale_allgemein","-"],
+["751","Eisenbahnanlagen","Rangierdienstsignale","Wartesignal","-"],
+["752","Eisenbahnanlagen","Rangierdienstsignale","Wartesignal_Zwerg","-"],
+["753","Eisenbahnanlagen","Rangierdienstsignale","Rangierhaltetafel","-"],
+["754","Eisenbahnanlagen","Rangierdienstsignale","Abdrücksignal_Form","-"],
+["755","Eisenbahnanlagen","Rangierdienstsignale","Abdrücksignal_Licht","-"],
+["760","Eisenbahnanlagen","Schutz-/Ts-/Zugpersonalsignale","Schutzsignale_allgemein","-"],
+["761","Eisenbahnanlagen","Schutz-/Ts-/Zugpersonalsignale","Sperrsignal_Form","-"],
+["762","Eisenbahnanlagen","Schutz-/Ts-/Zugpersonalsignale","Sperrsignal_Zwerg","-"],
+["763","Eisenbahnanlagen","Schutz-/Ts-/Zugpersonalsignale","Sperrsignal_Licht","-"],
+["764","Eisenbahnanlagen","Schutz-/Ts-/Zugpersonalsignale","Sperrsignal_Zwerg","-"],
+["765","Eisenbahnanlagen","Schutz-/Ts-/Zugpersonalsignale","Nachschieben_einst","-"],
+["766","Eisenbahnanlagen","Schutz-/Ts-/Zugpersonalsignale","Halt_Weiterfahrt","-"],
+["767","Eisenbahnanlagen","Schutz-/Ts-/Zugpersonalsignale","Bremsprobensignal","-"],
+["768","Eisenbahnanlagen","Schutz-/Ts-/Zugpersonalsignale","Abfahrsignal","-"],
+["770","Eisenbahnanlagen","Wegübergangssicherung","Wegübergangstafel","-"],
+["771","Eisenbahnanlagen","Wegübergangssicherung","Warnpfahl","-"],
+["772","Eisenbahnanlagen","Wegübergangssicherung","Warntafel","-"],
+["773","Eisenbahnanlagen","Wegübergangssicherung","Überwachungssignal","-"],
+["774","Eisenbahnanlagen","Wegübergangssicherung","Rautentafel","-"],
+["775","Eisenbahnanlagen","Wegübergangssicherung","Pfeiftafel","-"],
+["776","Eisenbahnanlagen","Wegübergangssicherung","Pfeiftafel_doppelt","-"],
+["777","Eisenbahnanlagen","Langsamfahrsignale","Läutetafel","-"],
+["778","Eisenbahnanlagen","Langsamfahrsignale","LBZ_Blockzeichen","-"],
+["779","Eisenbahnanlagen","Langsamfahrsignale","Eckentafel","-"],
+["780","Eisenbahnanlagen","Langsamfahrsignale","Geschwindigkeitstafel","-"],
+["781","Eisenbahnanlagen","Langsamfahrsignale","Geschwindigkeitstafel_Zwerg","-"],
+["782","Eisenbahnanlagen","Langsamfahrsignale","Anfangstafel","-"],
+["783","Eisenbahnanlagen","Langsamfahrsignale","Anfangstafel_Zwerg","-"],
+["784","Eisenbahnanlagen","Langsamfahrsignale","Endtafel","-"],
+["785","Eisenbahnanlagen","Langsamfahrsignale","Endtafel_Zwerg","-"],
+["786","Eisenbahnanlagen","Langsamfahrsignale","Geschw_Ankünd_signal","-"],
+["787","Eisenbahnanlagen","Langsamfahrsignale","Geschw_Ankünd_signal_Zwerg","-"],
+["788","Eisenbahnanlagen","Langsamfahrsignale","Geschwindigkeitssignal","-"],
+["789","Eisenbahnanlagen","Langsamfahrsignale","Geschwindigkeitssignal_Zwerg","-"],
+["790","Eisenbahnanlagen","elektrische Zugförderung","Zugförderung_allgemein","-"],
+["791","Eisenbahnanlagen","elektrische Zugförderung","Ausschaltesignal","-"],
+["792","Eisenbahnanlagen","elektrische Zugförderung","Einschaltesignal","-"],
+["793","Eisenbahnanlagen","elektrische Zugförderung","kürzte_Schutzstrecke","-"],
+["794","Eisenbahnanlagen","elektrische Zugförderung","Bügelsignal","-"],
+["795","Eisenbahnanlagen","elektrische Zugförderung","Bügel_ab","-"],
+["796","Eisenbahnanlagen","elektrische Zugförderung","Bügel_an","-"],
+["797","Eisenbahnanlagen","elektrische Zugförderung","Halt_angel_Stromabnehmer","-"],
+["798","Eisenbahnanlagen","elektrische Zugförderung","Pfeil_Abzweig_Fahrl","-"],
+["799","Eisenbahnanlagen","elektrische Zugförderung","Fahrstrom_unterbrechen","-"],
+["800","Ver-/Entsorgung","Schacht","Schacht_allgemein","-"],
+["801","Ver-/Entsorgung","Schacht","Einsteigschacht_rund","-"],
+["802","Ver-/Entsorgung","Schacht","Einsteigschacht_eckig","-"],
+["803","Ver-/Entsorgung","Schacht","Einsteigschacht_ohne_Symbol","-"],
+["804","Ver-/Entsorgung","Schacht","Kabelschacht","-"],
+["805","Ver-/Entsorgung","Schacht","Kabelschacht_ohne_Symbol","-"],
+["806","Ver-/Entsorgung","Schacht","Lichtschacht","-"],
+["807","Ver-/Entsorgung","Schacht","Fallrohr","-"],
+["808","Ver-/Entsorgung","Schacht","Gully","-"],
+["809","Ver-/Entsorgung","Schacht","Einlauf","-"],
+["810","Ver-/Entsorgung","Wasserversorgung","Wasser_allgemein","-"],
+["811","Ver-/Entsorgung","Wasserversorgung","Einlaufreihe","-"],
+["812","Ver-/Entsorgung","Wasserversorgung","Wasserschieber","-"],
+["813","Ver-/Entsorgung","Wasserversorgung","Unterflurhydrant","-"],
+["814","Ver-/Entsorgung","Wasserversorgung","Überflurhydrant","-"],
+["815","Ver-/Entsorgung","Wasserversorgung","Wasserkran","-"],
+["816","Ver-/Entsorgung","Wasserversorgung","Wassergew_Quelle","-"],
+["817","Ver-/Entsorgung","Wasserversorgung","Wassergew_Pumpe","-"],
+["818","Ver-/Entsorgung","Wasserversorgung","Wassergew_Brunnen","-"],
+["819","Ver-/Entsorgung","Wasserversorgung","Springbrunnen","-"],
+["820","Ver-/Entsorgung","Leitungen","Leitungen_allgemein","-"],
+["821","Ver-/Entsorgung","Leitungen","Grundwasserpegel","-"],
+["822","Ver-/Entsorgung","Leitungen","Schieber","-"],
+["823","Ver-/Entsorgung","Leitungen","Zapfstelle","-"],
+["824","Ver-/Entsorgung","Leitungen","Kabelkanal_aufgeständert","-"],
+["825","Ver-/Entsorgung","Leitungen","Kabelkanal_Kunststoff","-"],
+["826","Ver-/Entsorgung","Leitungen","Kabeltopf","-"],
+["827","Ver-/Entsorgung","Leitungen","Kabelkanal_Stein","-"],
+["828","Ver-/Entsorgung","Leitungen","Einspeisung","-"],
+["829","Ver-/Entsorgung","Leitungen","Stromschiene","-"],
+["830","Ver-/Entsorgung","Leitungen","Hochspannungszeichen","-"],
+["831","Ver-/Entsorgung","Leitungen","Elektrizität","-"],
+["832","Ver-/Entsorgung","Leitungen","Bahnstrom","-"],
+["833","Ver-/Entsorgung","Leitungen","Fahrleitung","-"],
+["834","Ver-/Entsorgung","Leitungen","Fernmelde","-"],
+["835","Ver-/Entsorgung","Leitungen","Signal","-"],
+["836","Ver-/Entsorgung","Leitungen","Fernwärme","-"],
+["837","Ver-/Entsorgung","Leitungen","Heizung","-"],
+["838","Ver-/Entsorgung","Leitungen","Öl","-"],
+["839","Ver-/Entsorgung","Leitungen","Gas","-"],
+["840","Ver-/Entsorgung","Leitungen","Luft","-"],
+["841","Ver-/Entsorgung","Leitungen","Produktenfernl","-"],
+["842","Ver-/Entsorgung","Leitungen","Abwasser","-"],
+["843","Ver-/Entsorgung","Leitungen","Wasser","-"],
+["845","Ver-/Entsorgung","Leitungen","oberirdisch","-"],
+["848","Ver-/Entsorgung","Leitungen","Leitung_unterirdisch","-"],
+["850","Ver-/Entsorgung","Masten","Mast_allgemein","-"],
+["851","Ver-/Entsorgung","Masten","Holzmast","-"],
+["852","Ver-/Entsorgung","Masten","Betonmast","-"],
+["853","Ver-/Entsorgung","Masten","Stahlrohrmast","-"],
+["854","Ver-/Entsorgung","Masten","Stahlgittermast","-"],
+["855","Ver-/Entsorgung","Masten","Fahrleitungsmast","-"],
+["856","Ver-/Entsorgung","Masten","Hochspannungsmast","-"],
+["857","Ver-/Entsorgung","Masten","Funkmast","-"],
+["858","Ver-/Entsorgung","Masten","Anker","-"],
+["859","Ver-/Entsorgung","Masten","schräger Stützmast","-"],
+["860","Ver-/Entsorgung","Lampe","Lampe_allgemein","-"],
+["861","Ver-/Entsorgung","Lampe","Lampe_Holzmast","-"],
+["862","Ver-/Entsorgung","Lampe","Lampe_Betonmast","-"],
+["863","Ver-/Entsorgung","Lampe","Lampe_Stahlrohrmast","-"],
+["864","Ver-/Entsorgung","Lampe","Lampe_Stahlgittermast","-"],
+["865","Ver-/Entsorgung","Lampe","Laterne_elektrisch","-"],
+["866","Ver-/Entsorgung","Lampe","Laterne_Gas","-"],
+["867","Ver-/Entsorgung","Lampe","Lampe_am_Gebäude","-"],
+["868","Ver-/Entsorgung","Lampe","Scheinwerfer","-"],
+["870","Ver-/Entsorgung","E-Anlagen","E_Anlagen_allgemein","-"],
+["871","Ver-/Entsorgung","E-Anlagen","Schaltschrank","-"],
+["872","Ver-/Entsorgung","E-Anlagen","Schalthaus","-"],
+["874","Ver-/Entsorgung","E-Anlagen","Trafo","-"],
+["875","Ver-/Entsorgung","Stein","Kabel_Merkstein","-"],
+["876","Ver-/Entsorgung","Stein","Merktafel_Säule","-"],
+["880","Ver-/Entsorgung","Bahntechnik / Balisen","Balise","-"],
+["881","Ver-/Entsorgung","Bahntechnik / Balisen","500Hz_Magnet","-"],
+["882","Ver-/Entsorgung","Bahntechnik / Balisen","1000_2000Hz_Magnt","-"],
+["883","Ver-/Entsorgung","Bahntechnik / Balisen","S-Magnet","-"],
+["884","Ver-/Entsorgung","Bahntechnik / Balisen","LZB-Technik","-"],
+["885","Ver-/Entsorgung","Bahntechnik / Balisen","EOW-Technik","-"],
+["886","Ver-/Entsorgung","Bahntechnik / Balisen","Isolierstoß_rechts","-"],
+["887","Ver-/Entsorgung","Bahntechnik / Balisen","Isolierstoß_links","-"],
+["888","Ver-/Entsorgung","Bahntechnik / Balisen","Isolierstoß_beidseitig","-"],
+["890","Ver-/Entsorgung","Bahntechnik / Balisen","BÜ-Tafel","-"],
+["891","Ver-/Entsorgung","Bahntechnik / Balisen","HET_Schalter","-"],
+["892","Ver-/Entsorgung","Bahntechnik / Balisen","Schleife_BÜ","-"],
+["900","Nutzungsarten","Laubbäume","Gehölz","-"],
+["901","Nutzungsarten","Laubbäume","Laubbaum_Ø=0,1m","-"],
+["902","Nutzungsarten","Laubbäume","Laubbaum_Ø=0,2m","-"],
+["903","Nutzungsarten","Laubbäume","Laubbaum_Ø=0,3m","-"],
+["904","Nutzungsarten","Laubbäume","Laubbaum_Ø=0,4m","-"],
+["905","Nutzungsarten","Laubbäume","Laubbaum_Ø=0,5m","-"],
+["906","Nutzungsarten","Laubbäume","Laubbaum_Ø=0,6m","-"],
+["907","Nutzungsarten","Laubbäume","Laubbaum_Ø=0,7m","-"],
+["908","Nutzungsarten","Laubbäume","Laubbaum_Ø=0,8m","-"],
+["909","Nutzungsarten","Laubbäume","Laubbaum_Ø=0,9 m","-"],
+["910","Nutzungsarten","Laubbäume","Laubbaum_Ø=1,0m","-"],
+["911","Nutzungsarten","Laubbäume","Laubbaum_Ø=1,1m","-"],
+["912","Nutzungsarten","Laubbäume","Laubbaum_Ø=1,2m","-"],
+["913","Nutzungsarten","Laubbäume","Laubbaum_Ø=1,3m","-"],
+["914","Nutzungsarten","Laubbäume","Laubbaum_Ø=1,4m","-"],
+["915","Nutzungsarten","Laubbäume","Laubbaum_Ø=1,5m","-"],
+["916","Nutzungsarten","Laubbäume","Laubbaum_Ø>1,5m","-"],
+["917","Nutzungsarten","Laubbäume","besonderer Baum","-"],
+["918","Nutzungsarten","Laubbäume","Baumreihe_Laub","-"],
+["919","Nutzungsarten","Laubbäume","Laubwald","-"],
+["920","Nutzungsarten","Mischwald","Mischwald","-"],
+["921","Nutzungsarten","Nadelbäume","Nadelbaum_Ø=0,1m","-"],
+["922","Nutzungsarten","Nadelbäume","Nadelbaum_Ø=0,2m","-"],
+["923","Nutzungsarten","Nadelbäume","Nadelbaum_Ø=0,3m","-"],
+["924","Nutzungsarten","Nadelbäume","Nadelbaum_Ø=0,4m","-"],
+["925","Nutzungsarten","Nadelbäume","Nadelbaum_Ø=0,5m","-"],
+["926","Nutzungsarten","Nadelbäume","Nadelbaum_Ø=0,6m","-"],
+["927","Nutzungsarten","Nadelbäume","Nadelbaum_Ø=0,7m","-"],
+["928","Nutzungsarten","Nadelbäume","Nadelbaum_Ø=0,8m","-"],
+["929","Nutzungsarten","Nadelbäume","Nadelbaum_Ø=0,9m","-"],
+["930","Nutzungsarten","Nadelbäume","Nadelbaum_Ø=1,0m","-"],
+["931","Nutzungsarten","Nadelbäume","Nadelbaum_Ø=1,1m","-"],
+["932","Nutzungsarten","Nadelbäume","Nadelbaum_Ø=1,2m","-"],
+["933","Nutzungsarten","Nadelbäume","Nadelbaum_Ø=1,3m","-"],
+["934","Nutzungsarten","Nadelbäume","Nadelbaum_Ø=1,4m","-"],
+["935","Nutzungsarten","Nadelbäume","Nadelbaum_Ø=1,5m","-"],
+["936","Nutzungsarten","Nadelbäume","Nadelbaum_Ø>1,5m","-"],
+["937","Nutzungsarten","Nadelbäume","besonderer_Baum","-"],
+["938","Nutzungsarten","Nadelbäume","Baumreihe_Nadel","-"],
+["939","Nutzungsarten","Nadelbäume","Nadelwald","-"],
+["940","Nutzungsarten","Nutzungsarten (Flächen)","Nutzarten_allgemein","-"],
+["941","Nutzungsarten","Nutzungsarten (Flächen)","Parkanlage","-"],
+["942","Nutzungsarten","Nutzungsarten (Flächen)","Friedhof","-"],
+["943","Nutzungsarten","Nutzungsarten (Flächen)","Garten","-"],
+["945","Nutzungsarten","Nutzungsarten (Flächen)","Grünland","-"],
+["946","Nutzungsarten","Nutzungsarten (Flächen)","Weingarten","-"],
+["947","Nutzungsarten","Nutzungsarten (Flächen)","Hopfenpflanzung","-"],
+["948","Nutzungsarten","Nutzungsarten (Flächen)","Brachland","-"],
+["949","Nutzungsarten","Nutzungsarten (Flächen)","Heide","-"],
+["950","Nutzungsarten","Nutzungsarten (Flächen)","Schilf","-"],
+["951","Nutzungsarten","Nutzungsarten (Flächen)","Torf","-"],
+["952","Nutzungsarten","Nutzungsarten (Flächen)","Steinbruch","-"],
+["953","Nutzungsarten","Nutzungsarten (Flächen)","Parkplatz","-"],
+["954","Nutzungsarten","Nutzungsarten (Flächen)","Baumschule","-"],
+["955","Nutzungsarten","Nutzungsarten (Flächen)","Kleingartenanlage","-"],
+["956","Nutzungsarten","Nutzungsarten (Flächen)","Campingplatz","-"],
+["957","Nutzungsarten","Nutzungsarten (Flächen)","Ackerland","-"],
+["958","Nutzungsarten","Nutzungsarten (Flächen)","Unland","-"],
+["959","Nutzungsarten","Nutzungsarten (Flächen)","Hofraum","-"],
+["960","Nutzungsarten","Nutzungsarten (Flächen)","Lagerplatz","-"],
+["961","Nutzungsarten","Nutzungsarten (Flächen)","Bahngelände","-"],
+["970","Gewässer","Gewässer","Gewässer_allgemein","-"],
+["971","Gewässer","Gewässer","Wassergraben","-"],
+["972","Gewässer","Gewässer","Kanal","-"],
+["973","Gewässer","Gewässer","Fluß","-"],
+["974","Gewässer","Gewässer","See_Teich","-"],
+["975","Geländeformen","Geländeformen","Grube","-"],
+["976","Geländeformen","Geländeformen","Fels","-"],
+["977","Geländeformen","Geländeformen","Hochpunkt","-"],
+["978","Geländeformen","Geländeformen","Tiefpunkt","-"],
+["979","Geländeformen","Geländeformen","Höhenlinie","-"],
+["980","Geländeformen","Böschung","Böschung_UK_deutlich","-"],
+["981","Geländeformen","Böschung","Böschung_OK","-"],
+["982","Geländeformen","Böschung","Böschung_UK_undeutl","-"],
+["983","Geländeformen","Böschung","Böschung_OK","-"],
+["984","Geländeformen","Böschung","Böschung_UK_Schutt","-"],
+["985","Geländeformen","Böschung","Böschung_OK_Schutt","-"],
+["986","Geländeformen","Böschung","Böschung_UK_Pflaster","-"],
+["987","Geländeformen","Böschung","Böschung_OK_Pflaster","-"],
+["988","Geländeformen","Böschung","schmaler_Damm","-"],
+["989","Geländeformen","Böschung","schmaler_Graben","-"],
+["990","Geländeformen","Böschung","Nullpunkt","-"],
+["991","Geländeformen","Querprofil","Schwelle","-"],
+["992","Geländeformen","Querprofil","Schiene","-"],
+["993","Geländeformen","Querprofil","Schotter","-"],
+["994","Geländeformen","Querprofil","Planum","-"],
+["995","Geländeformen","Querprofil","Geländepunkt","-"],
+["996","Geländeformen","Querprofil","Punkt_übereinander_zuerst","-"],
+["997","Geländeformen","Querprofil","Punkt_übereinander_danach","-"],
+["999","Geländeformen","Querprofil","siehe Feldriss","-"]
+];
+
+/* Nur diese Berechnungsarten sind in der Quelle belastbar; alles andere ist Datenrauschen. */
+const BA_OK = {"L":"Lage","H":"Höhe","L+H":"Lage + Höhe","Kontrollmessung":"Kontrollmessung"};
+
+/* Feldsprache -> Begriffe, die real in der Liste vorkommen (geprüft, nicht geraten) */
+const SYN = {
+  leuchte:["lampe","laterne"], licht:["lampe","laterne"], strassenlampe:["lampe","laterne"],
+  sinkkasten:["gully","einlauf"], strassenablauf:["gully","einlauf"], abfluss:["gully","einlauf"],
+  deckel:["schacht"], kanaldeckel:["schacht"], dole:["schacht"],
+  pfosten:["mast","stander"], stange:["mast"],
+  bordstein:["bordkante"], randstein:["bordkante"],
+  strom:["e anlagen","lampe","mast"], telefon:["t anlagen"],
+  wasser:["w anlagen","wasserschieber"], gas:["g anlagen"],
+  hydrant:["hydrant"], kabelschutz:["kabelkanal"],
+  oberleitung:["fahrleitung"], ol:["fahrleitung"],
+  stumpfgleis:["prellbock"], gleisabschlus:["prellbock"]
+};
+
+/* --- Normalisierung: Umlaute, ae/oe/ue, Trenner. Beide Seiten gleich behandelt,
+       damit "Gebaeude", "Gebäude" und "Gebaude" denselben Kanon ergeben. --- */
+function canon(s){
+  return String(s).toLowerCase()
+    .replace(/ä/g,"a").replace(/ö/g,"o").replace(/ü/g,"u").replace(/ß/g,"s")
+    .replace(/ae/g,"a").replace(/oe/g,"o").replace(/ue/g,"u").replace(/ss/g,"s")
+    .replace(/[^a-z0-9]+/g," ").trim();
+}
+const pretty = s => String(s).replace(/_/g," ");
+
+const DATA = RAW.map(r => {
+  const [code,art,gruppe,element,ba] = r;
+  return {
+    code, art, gruppe, element, ba: BA_OK[ba] ? ba : "",
+    cEl: canon(element), cGr: canon(gruppe), cArt: canon(art),
+    hay: canon(element+" "+gruppe+" "+art)
+  };
+});
+const BY_CODE = new Map(DATA.map(d => [d.code, d]));
+const ARTEN = [...new Set(DATA.map(d => d.art))].sort((a,b)=>a.localeCompare(b,"de"));
+
+/* --- Zustand (lokal gespeichert) --- */
+const store = {
+  get(k,f){ try{ return JSON.parse(localStorage.getItem(k)) ?? f; }catch(e){ return f; } },
+  set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+};
+let favs   = store.get("pc_fav",[]).filter(c => BY_CODE.has(c));
+let recent = store.get("pc_recent",[]).filter(c => BY_CODE.has(c));
+let artFilter = "";
+
+const $ = id => document.getElementById(id);
+const qEl = $("q"), outEl = $("out");
+
+/* --- Theme --- */
+(function initTheme(){
+  const saved = store.get("pc_theme",null);
+  const dark = saved === null
+    ? matchMedia("(prefers-color-scheme: dark)").matches
+    : saved === "dark";
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+})();
+$("theme").onclick = () => {
+  const dark = document.documentElement.dataset.theme !== "dark";
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  store.set("pc_theme", dark ? "dark" : "light");
+};
+
+/* --- Filter-Chips --- */
+(function buildChips(){
+  const box = $("chips");
+  const mk = (label,value) => {
+    const b = document.createElement("button");
+    b.className = "chip"; b.textContent = label; b.dataset.v = value;
+    b.setAttribute("aria-pressed", String(artFilter === value));
+    b.onclick = () => {
+      artFilter = (artFilter === value) ? "" : value;
+      [...box.children].forEach(c => c.setAttribute("aria-pressed", String(c.dataset.v === artFilter)));
+      render();
+    };
+    box.appendChild(b);
+  };
+  mk("Alle","");
+  ARTEN.forEach(a => mk(a,a));
+})();
+
+/* --- Suche --- */
+function tokenize(q){
+  return canon(q).split(" ").filter(Boolean).map(t => ({ t, alts: SYN[t] ? SYN[t].map(canon) : [] }));
+}
+function hitsAll(d, toks){
+  /* Ziffernfolgen zaehlen auch als Codesuche ("824"), sonst nur Text + Synonyme. */
+  return toks.every(({t,alts}) =>
+    d.hay.includes(t) || d.code.startsWith(t) || alts.some(a => d.hay.includes(a)));
+}
+function score(d, toks, qc){
+  let s = 0;
+  if (/^\d+$/.test(qc)) {
+    if (d.code === qc) s += 12000;
+    else if (d.code.startsWith(qc)) s += 6000 - d.code.length * 10;
+  }
+  for (const {t,alts} of toks){
+    if (d.cEl.startsWith(t))                 s += 700;
+    else if (new RegExp("\\b"+t).test(d.cEl)) s += 520;
+    else if (d.cEl.includes(t))              s += 380;
+    else if (alts.some(a => d.cEl.includes(a))) s += 260;  /* Synonym trifft das Element */
+    else if (d.cGr.includes(t))              s += 190;
+    else if (d.cArt.includes(t))             s += 110;
+    else if (alts.some(a => d.hay.includes(a))) s += 90;   /* Synonym trifft Gruppe/Art */
+  }
+  /* "…_allgemein" ist im Feld der ueblichste Griff, wenn der Spezialfall unklar ist. */
+  if (d.cEl.includes("allgemein")) s += 60;
+  return s - d.element.length * 0.15;   /* kuerzere, allgemeinere Begriffe leicht vorn */
+}
+function search(q){
+  const qc = canon(q), toks = tokenize(q);
+  let list = artFilter ? DATA.filter(d => d.art === artFilter) : DATA;
+  if (!toks.length) return list;
+  return list.filter(d => hitsAll(d, toks))
+             .map(d => ({ d, s: score(d, toks, qc) }))
+             .sort((a,b) => b.s - a.s || (+a.d.code) - (+b.d.code))
+             .map(x => x.d);
+}
+
+/* --- Rendering --- */
+function highlight(text, toks){
+  const frag = document.createDocumentFragment();
+  if (!toks.length){ frag.appendChild(document.createTextNode(text)); return frag; }
+  /* Auf dem Kanon suchen, im Original markieren: Index-für-Index, da canon() je Zeichen
+     max. ein Zeichen erzeugt oder zusammenfasst -> wir markieren wortweise. */
+  const words = text.split(/(\s|_|\/|-)/);
+  for (const w of words){
+    const cw = canon(w);
+    const hit = cw && toks.some(({t,alts}) => cw.includes(t) || alts.some(a => cw.includes(a)));
+    if (hit){ const m = document.createElement("mark"); m.textContent = w; frag.appendChild(m); }
+    else frag.appendChild(document.createTextNode(w));
+  }
+  return frag;
+}
+function rowEl(d, toks){
+  const li = document.createElement("li");
+  li.className = "row"; li.dataset.code = d.code; li.tabIndex = 0;
+
+  const c = document.createElement("div");
+  c.className = "code"; c.textContent = d.code;
+
+  const info = document.createElement("div");
+  info.className = "info";
+  const el = document.createElement("div");
+  el.className = "el"; el.appendChild(highlight(pretty(d.element), toks));
+  const path = document.createElement("div");
+  path.className = "path"; path.textContent = d.art + " › " + pretty(d.gruppe);
+  info.append(el, path);
+  if (d.ba){
+    const b = document.createElement("span");
+    b.className = "ba"; b.textContent = BA_OK[d.ba];
+    info.appendChild(b);
+  }
+
+  const star = document.createElement("button");
+  star.className = "star"; star.type = "button";
+  star.textContent = "★";
+  star.setAttribute("aria-pressed", String(favs.includes(d.code)));
+  star.setAttribute("aria-label", "Merken");
+  star.onclick = ev => {
+    ev.stopPropagation();
+    const i = favs.indexOf(d.code);
+    if (i >= 0) favs.splice(i,1); else favs.unshift(d.code);
+    store.set("pc_fav", favs);
+    render();
+  };
+
+  li.append(c, info, star);
+  li.onclick = () => pick(d);
+  li.onkeydown = ev => { if (ev.key === "Enter" || ev.key === " "){ ev.preventDefault(); pick(d); } };
+  return li;
+}
+function section(title, items, toks){
+  if (!items.length) return null;
+  const frag = document.createDocumentFragment();
+  const h = document.createElement("div");
+  h.className = "sectionhead"; h.textContent = title;
+  const ul = document.createElement("ul");
+  items.forEach(d => ul.appendChild(rowEl(d, toks)));
+  frag.append(h, ul);
+  return frag;
+}
+function render(){
+  const q = qEl.value.trim();
+  const toks = tokenize(q);
+  const res = search(q);
+  outEl.textContent = "";
+  $("clear").style.display = q ? "block" : "none";
+
+  if (!q){
+    const inFilter = c => { const d = BY_CODE.get(c); return d && (!artFilter || d.art === artFilter); };
+    const f = favs.filter(inFilter).map(c => BY_CODE.get(c));
+    const r = recent.filter(c => inFilter(c) && !favs.includes(c)).slice(0,12).map(c => BY_CODE.get(c));
+    const a = section("Gemerkt", f, []);
+    const b = section("Zuletzt benutzt", r, []);
+    if (a) outEl.appendChild(a);
+    if (b) outEl.appendChild(b);
+    if (!a && !b){
+      const h = document.createElement("div");
+      h.className = "hint";
+      h.innerHTML = "Suchbegriff eingeben – etwa <b>Kabelkanal</b>, <b>Schacht</b>, <b>Weiche</b> "
+        + "oder direkt eine Codenummer wie <b>824</b>.<br><br>"
+        + "Tippen auf einen Treffer kopiert den Code und legt ihn unter <b>Zuletzt benutzt</b> ab. "
+        + "Mit <b>★</b> bleibt ein Code dauerhaft oben.";
+      outEl.appendChild(h);
+    }
+    const shown = (artFilter ? DATA.filter(d => d.art === artFilter).length : DATA.length);
+    $("count").textContent = shown + " Codes";
+    return;
+  }
+
+  $("count").textContent = res.length + " Treffer";
+  if (!res.length){
+    const e = document.createElement("div");
+    e.className = "empty";
+    e.innerHTML = "Kein Treffer für <b>" + q.replace(/[<>&]/g,"") + "</b>."
+      + (artFilter ? "<br>Filter <b>" + artFilter + "</b> ist aktiv – evtl. auf „Alle“ stellen." : "")
+      + "<br><br>Tipp: kürzer suchen (z. B. <b>kabel</b> statt <b>Kabelkanal Stein</b>).";
+    outEl.appendChild(e);
+    return;
+  }
+  const ul = document.createElement("ul");
+  res.forEach(d => ul.appendChild(rowEl(d, toks)));
+  outEl.appendChild(ul);
+}
+
+/* --- Auswahl: Code kopieren + merken --- */
+function pick(d){
+  copy(d.code);
+  recent = [d.code, ...recent.filter(c => c !== d.code)].slice(0,15);
+  store.set("pc_recent", recent);
+  toast(d.code + " kopiert · " + pretty(d.element));
+}
+function copy(text){
+  if (navigator.clipboard && location.protocol !== "file:"){
+    navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+  } else fallbackCopy(text);
+}
+function fallbackCopy(text){
+  const ta = document.createElement("textarea");
+  ta.value = text; ta.setAttribute("readonly","");
+  ta.style.cssText = "position:fixed;left:-9999px";
+  document.body.appendChild(ta); ta.select();
+  try{ document.execCommand("copy"); }catch(e){}
+  document.body.removeChild(ta);
+}
+let toastTimer;
+function toast(msg){
+  const t = $("toast");
+  t.textContent = msg; t.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("on"), 1900);
+}
+
+/* --- Eingabe --- */
+let debounce;
+qEl.oninput = () => { clearTimeout(debounce); debounce = setTimeout(render, 60); };
+qEl.onkeydown = ev => {
+  if (ev.key === "Escape"){ qEl.value = ""; render(); }
+  if (ev.key === "Enter"){
+    const first = outEl.querySelector("li.row");
+    if (first){ qEl.blur(); pick(BY_CODE.get(first.dataset.code)); }
+  }
+};
+$("clear").onclick = () => { qEl.value = ""; qEl.focus(); render(); };
+
+/* --- Offline-Cache --- */
+$("foot").textContent = DATA.length + " Punktcodes · Quelle punktcodes.csv (gl-survey 2012)";
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")){
+  addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+}
+
+render();
+if (!matchMedia("(pointer: coarse)").matches) qEl.focus();   /* Desktop: direkt tippen */
+</script>
+</body>
+</html>
+

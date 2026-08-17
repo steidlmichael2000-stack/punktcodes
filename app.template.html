@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b3d62">
+<meta name="description" content="Punktcode-Suche für den Außendienst – offline verfügbar">
+<title>Punktcodes</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<style>
+  :root{
+    --bg:#f4f5f7; --card:#ffffff; --text:#14181d; --muted:#5b6572;
+    --line:#d8dde3; --accent:#0b5d92; --accent-text:#ffffff;
+    --code-bg:#e8f0f7; --code-text:#0b3d62;
+    --fav:#e0a000; --badge:#e6ebf0; --badge-text:#3c4855;
+    --shadow:0 1px 2px rgba(0,0,0,.10), 0 4px 12px rgba(0,0,0,.05);
+  }
+  html[data-theme="dark"]{
+    --bg:#10141a; --card:#1a2027; --text:#eef2f6; --muted:#9aa6b4;
+    --line:#2c353f; --accent:#4da3e0; --accent-text:#0b1015;
+    --code-bg:#22303c; --code-text:#8fcbf5;
+    --fav:#f0c04a; --badge:#28313b; --badge-text:#c3cdd8;
+    --shadow:0 1px 2px rgba(0,0,0,.4);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    background:var(--bg); color:var(--text);
+    font:17px/1.35 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;
+    padding-bottom:env(safe-area-inset-bottom);
+    overscroll-behavior-y:contain;
+  }
+  header{
+    position:sticky; top:0; z-index:20; background:var(--bg);
+    padding:calc(8px + env(safe-area-inset-top)) 12px 6px;
+    border-bottom:1px solid var(--line);
+  }
+  .titlebar{display:flex;align-items:center;gap:10px;margin:0 2px 8px}
+  .titlebar h1{font-size:17px;font-weight:700;margin:0;letter-spacing:.2px}
+  .titlebar .count{font-size:13px;color:var(--muted);margin-left:auto;white-space:nowrap}
+  .iconbtn{
+    border:1px solid var(--line); background:var(--card); color:var(--text);
+    width:38px;height:38px;border-radius:10px;font-size:17px;line-height:1;
+    display:flex;align-items:center;justify-content:center;cursor:pointer;flex:0 0 auto;
+  }
+  .searchwrap{position:relative;display:flex;align-items:center}
+  #q{
+    width:100%; font-size:19px; padding:14px 44px 14px 14px;
+    border:2px solid var(--line); border-radius:12px;
+    background:var(--card); color:var(--text); box-shadow:var(--shadow);
+  }
+  #q:focus{outline:none;border-color:var(--accent)}
+  #clear{
+    position:absolute; right:6px; width:34px;height:34px;border:0;border-radius:50%;
+    background:transparent;color:var(--muted);font-size:22px;line-height:1;cursor:pointer;display:none;
+  }
+  .chips{display:flex;gap:6px;overflow-x:auto;padding:8px 2px 4px;scrollbar-width:none}
+  .chips::-webkit-scrollbar{display:none}
+  .chip{
+    flex:0 0 auto;border:1px solid var(--line);background:var(--card);color:var(--muted);
+    padding:7px 12px;border-radius:999px;font-size:14px;white-space:nowrap;cursor:pointer;
+  }
+  .chip[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--accent-text);font-weight:600}
+  main{padding:10px 12px 40px}
+  .sectionhead{
+    font-size:12px;font-weight:700;letter-spacing:.9px;text-transform:uppercase;
+    color:var(--muted);margin:14px 4px 7px;display:flex;align-items:center;gap:8px;
+  }
+  .sectionhead:first-child{margin-top:2px}
+  ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:7px}
+  li.row{
+    display:flex;align-items:center;gap:11px;background:var(--card);
+    border:1px solid var(--line);border-radius:12px;padding:10px 8px 10px 11px;
+    min-height:62px;cursor:pointer;box-shadow:var(--shadow);
+  }
+  li.row:active{transform:scale(.995);border-color:var(--accent)}
+  .code{
+    flex:0 0 auto;min-width:62px;text-align:center;
+    font:700 22px/1 ui-monospace,SFMono-Regular,Consolas,monospace;
+    font-variant-numeric:tabular-nums;
+    background:var(--code-bg);color:var(--code-text);
+    padding:9px 7px;border-radius:9px;
+  }
+  .info{flex:1 1 auto;min-width:0}
+  .el{font-size:16.5px;font-weight:600;line-height:1.25;overflow-wrap:anywhere}
+  .path{font-size:13px;color:var(--muted);margin-top:2px;overflow-wrap:anywhere}
+  .ba{
+    display:inline-block;margin-top:4px;font-size:11.5px;font-weight:700;letter-spacing:.4px;
+    background:var(--badge);color:var(--badge-text);padding:2px 7px;border-radius:5px;
+  }
+  .star{
+    flex:0 0 auto;width:44px;height:44px;border:0;background:transparent;
+    font-size:21px;line-height:1;color:var(--line);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .star[aria-pressed="true"]{color:var(--fav)}
+  mark{background:rgba(255,208,0,.42);color:inherit;border-radius:2px;padding:0 1px}
+  html[data-theme="dark"] mark{background:rgba(255,208,0,.26);color:#ffe9a8}
+  .empty{text-align:center;color:var(--muted);padding:38px 18px;font-size:15px;line-height:1.6}
+  .empty b{color:var(--text)}
+  .hint{
+    background:var(--card);border:1px solid var(--line);border-radius:12px;
+    padding:13px 15px;color:var(--muted);font-size:14.5px;line-height:1.55;
+  }
+  .hint b{color:var(--text)}
+  #toast{
+    position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom));
+    transform:translate(-50%,14px);background:var(--accent);color:var(--accent-text);
+    padding:12px 20px;border-radius:999px;font-size:16px;font-weight:600;
+    box-shadow:0 6px 20px rgba(0,0,0,.28);opacity:0;pointer-events:none;
+    transition:opacity .16s,transform .16s;z-index:60;
+  }
+  #toast.on{opacity:1;transform:translate(-50%,0)}
+  footer{text-align:center;color:var(--muted);font-size:12px;padding:6px 16px 26px;line-height:1.7}
+  @media (min-width:720px){
+    body{font-size:16px}
+    header{padding-left:max(12px,calc(50vw - 480px));padding-right:max(12px,calc(50vw - 480px))}
+    main,footer{max-width:960px;margin:0 auto}
+  }
+</style>
+</head>
+<body>
+<header>
+  <div class="titlebar">
+    <h1>Punktcodes</h1>
+    <span class="count" id="count"></span>
+    <button class="iconbtn" id="theme" title="Hell / Dunkel" aria-label="Hell oder Dunkel umschalten">◐</button>
+  </div>
+  <div class="searchwrap">
+    <input id="q" type="search" autocomplete="off" autocorrect="off" autocapitalize="off"
+           spellcheck="false" enterkeyhint="search" placeholder="Suchen: Kabelkanal, Schacht, 824 …">
+    <button id="clear" aria-label="Suche löschen">&times;</button>
+  </div>
+  <div class="chips" id="chips"></div>
+</header>
+
+<main id="out"></main>
+<footer id="foot"></footer>
+<div id="toast" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+
+/* Datensatz: [Code, Art, Gruppe, Element, Berechnungsart] – aus punktcodes.csv erzeugt */
+const RAW = /*__CODES__*/[];
+
+/* Nur diese Berechnungsarten sind in der Quelle belastbar; alles andere ist Datenrauschen. */
+const BA_OK = {"L":"Lage","H":"Höhe","L+H":"Lage + Höhe","Kontrollmessung":"Kontrollmessung"};
+
+/* Feldsprache -> Begriffe, die real in der Liste vorkommen (geprüft, nicht geraten) */
+const SYN = {
+  leuchte:["lampe","laterne"], licht:["lampe","laterne"], strassenlampe:["lampe","laterne"],
+  sinkkasten:["gully","einlauf"], strassenablauf:["gully","einlauf"], abfluss:["gully","einlauf"],
+  deckel:["schacht"], kanaldeckel:["schacht"], dole:["schacht"],
+  pfosten:["mast","stander"], stange:["mast"],
+  bordstein:["bordkante"], randstein:["bordkante"],
+  strom:["e anlagen","lampe","mast"], telefon:["t anlagen"],
+  wasser:["w anlagen","wasserschieber"], gas:["g anlagen"],
+  hydrant:["hydrant"], kabelschutz:["kabelkanal"],
+  oberleitung:["fahrleitung"], ol:["fahrleitung"],
+  stumpfgleis:["prellbock"], gleisabschlus:["prellbock"]
+};
+
+/* --- Normalisierung: Umlaute, ae/oe/ue, Trenner. Beide Seiten gleich behandelt,
+       damit "Gebaeude", "Gebäude" und "Gebaude" denselben Kanon ergeben. --- */
+function canon(s){
+  return String(s).toLowerCase()
+    .replace(/ä/g,"a").replace(/ö/g,"o").replace(/ü/g,"u").replace(/ß/g,"s")
+    .replace(/ae/g,"a").replace(/oe/g,"o").replace(/ue/g,"u").replace(/ss/g,"s")
+    .replace(/[^a-z0-9]+/g," ").trim();
+}
+const pretty = s => String(s).replace(/_/g," ");
+
+const DATA = RAW.map(r => {
+  const [code,art,gruppe,element,ba] = r;
+  return {
+    code, art, gruppe, element, ba: BA_OK[ba] ? ba : "",
+    cEl: canon(element), cGr: canon(gruppe), cArt: canon(art),
+    hay: canon(element+" "+gruppe+" "+art)
+  };
+});
+const BY_CODE = new Map(DATA.map(d => [d.code, d]));
+const ARTEN = [...new Set(DATA.map(d => d.art))].sort((a,b)=>a.localeCompare(b,"de"));
+
+/* --- Zustand (lokal gespeichert) --- */
+const store = {
+  get(k,f){ try{ return JSON.parse(localStorage.getItem(k)) ?? f; }catch(e){ return f; } },
+  set(k,v){ try{ localStorage.setItem(k,JSON.stringify(v)); }catch(e){} }
+};
+let favs   = store.get("pc_fav",[]).filter(c => BY_CODE.has(c));
+let recent = store.get("pc_recent",[]).filter(c => BY_CODE.has(c));
+let artFilter = "";
+
+const $ = id => document.getElementById(id);
+const qEl = $("q"), outEl = $("out");
+
+/* --- Theme --- */
+(function initTheme(){
+  const saved = store.get("pc_theme",null);
+  const dark = saved === null
+    ? matchMedia("(prefers-color-scheme: dark)").matches
+    : saved === "dark";
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+})();
+$("theme").onclick = () => {
+  const dark = document.documentElement.dataset.theme !== "dark";
+  document.documentElement.dataset.theme = dark ? "dark" : "light";
+  store.set("pc_theme", dark ? "dark" : "light");
+};
+
+/* --- Filter-Chips --- */
+(function buildChips(){
+  const box = $("chips");
+  const mk = (label,value) => {
+    const b = document.createElement("button");
+    b.className = "chip"; b.textContent = label; b.dataset.v = value;
+    b.setAttribute("aria-pressed", String(artFilter === value));
+    b.onclick = () => {
+      artFilter = (artFilter === value) ? "" : value;
+      [...box.children].forEach(c => c.setAttribute("aria-pressed", String(c.dataset.v === artFilter)));
+      render();
+    };
+    box.appendChild(b);
+  };
+  mk("Alle","");
+  ARTEN.forEach(a => mk(a,a));
+})();
+
+/* --- Suche --- */
+function tokenize(q){
+  return canon(q).split(" ").filter(Boolean).map(t => ({ t, alts: SYN[t] ? SYN[t].map(canon) : [] }));
+}
+function hitsAll(d, toks){
+  /* Ziffernfolgen zaehlen auch als Codesuche ("824"), sonst nur Text + Synonyme. */
+  return toks.every(({t,alts}) =>
+    d.hay.includes(t) || d.code.startsWith(t) || alts.some(a => d.hay.includes(a)));
+}
+function score(d, toks, qc){
+  let s = 0;
+  if (/^\d+$/.test(qc)) {
+    if (d.code === qc) s += 12000;
+    else if (d.code.startsWith(qc)) s += 6000 - d.code.length * 10;
+  }
+  for (const {t,alts} of toks){
+    if (d.cEl.startsWith(t))                 s += 700;
+    else if (new RegExp("\\b"+t).test(d.cEl)) s += 520;
+    else if (d.cEl.includes(t))              s += 380;
+    else if (alts.some(a => d.cEl.includes(a))) s += 260;  /* Synonym trifft das Element */
+    else if (d.cGr.includes(t))              s += 190;
+    else if (d.cArt.includes(t))             s += 110;
+    else if (alts.some(a => d.hay.includes(a))) s += 90;   /* Synonym trifft Gruppe/Art */
+  }
+  /* "…_allgemein" ist im Feld der ueblichste Griff, wenn der Spezialfall unklar ist. */
+  if (d.cEl.includes("allgemein")) s += 60;
+  return s - d.element.length * 0.15;   /* kuerzere, allgemeinere Begriffe leicht vorn */
+}
+function search(q){
+  const qc = canon(q), toks = tokenize(q);
+  let list = artFilter ? DATA.filter(d => d.art === artFilter) : DATA;
+  if (!toks.length) return list;
+  return list.filter(d => hitsAll(d, toks))
+             .map(d => ({ d, s: score(d, toks, qc) }))
+             .sort((a,b) => b.s - a.s || (+a.d.code) - (+b.d.code))
+             .map(x => x.d);
+}
+
+/* --- Rendering --- */
+function highlight(text, toks){
+  const frag = document.createDocumentFragment();
+  if (!toks.length){ frag.appendChild(document.createTextNode(text)); return frag; }
+  /* Auf dem Kanon suchen, im Original markieren: Index-für-Index, da canon() je Zeichen
+     max. ein Zeichen erzeugt oder zusammenfasst -> wir markieren wortweise. */
+  const words = text.split(/(\s|_|\/|-)/);
+  for (const w of words){
+    const cw = canon(w);
+    const hit = cw && toks.some(({t,alts}) => cw.includes(t) || alts.some(a => cw.includes(a)));
+    if (hit){ const m = document.createElement("mark"); m.textContent = w; frag.appendChild(m); }
+    else frag.appendChild(document.createTextNode(w));
+  }
+  return frag;
+}
+function rowEl(d, toks){
+  const li = document.createElement("li");
+  li.className = "row"; li.dataset.code = d.code; li.tabIndex = 0;
+
+  const c = document.createElement("div");
+  c.className = "code"; c.textContent = d.code;
+
+  const info = document.createElement("div");
+  info.className = "info";
+  const el = document.createElement("div");
+  el.className = "el"; el.appendChild(highlight(pretty(d.element), toks));
+  const path = document.createElement("div");
+  path.className = "path"; path.textContent = d.art + " › " + pretty(d.gruppe);
+  info.append(el, path);
+  if (d.ba){
+    const b = document.createElement("span");
+    b.className = "ba"; b.textContent = BA_OK[d.ba];
+    info.appendChild(b);
+  }
+
+  const star = document.createElement("button");
+  star.className = "star"; star.type = "button";
+  star.textContent = "★";
+  star.setAttribute("aria-pressed", String(favs.includes(d.code)));
+  star.setAttribute("aria-label", "Merken");
+  star.onclick = ev => {
+    ev.stopPropagation();
+    const i = favs.indexOf(d.code);
+    if (i >= 0) favs.splice(i,1); else favs.unshift(d.code);
+    store.set("pc_fav", favs);
+    render();
+  };
+
+  li.append(c, info, star);
+  li.onclick = () => pick(d);
+  li.onkeydown = ev => { if (ev.key === "Enter" || ev.key === " "){ ev.preventDefault(); pick(d); } };
+  return li;
+}
+function section(title, items, toks){
+  if (!items.length) return null;
+  const frag = document.createDocumentFragment();
+  const h = document.createElement("div");
+  h.className = "sectionhead"; h.textContent = title;
+  const ul = document.createElement("ul");
+  items.forEach(d => ul.appendChild(rowEl(d, toks)));
+  frag.append(h, ul);
+  return frag;
+}
+function render(){
+  const q = qEl.value.trim();
+  const toks = tokenize(q);
+  const res = search(q);
+  outEl.textContent = "";
+  $("clear").style.display = q ? "block" : "none";
+
+  if (!q){
+    const inFilter = c => { const d = BY_CODE.get(c); return d && (!artFilter || d.art === artFilter); };
+    const f = favs.filter(inFilter).map(c => BY_CODE.get(c));
+    const r = recent.filter(c => inFilter(c) && !favs.includes(c)).slice(0,12).map(c => BY_CODE.get(c));
+    const a = section("Gemerkt", f, []);
+    const b = section("Zuletzt benutzt", r, []);
+    if (a) outEl.appendChild(a);
+    if (b) outEl.appendChild(b);
+    if (!a && !b){
+      const h = document.createElement("div");
+      h.className = "hint";
+      h.innerHTML = "Suchbegriff eingeben – etwa <b>Kabelkanal</b>, <b>Schacht</b>, <b>Weiche</b> "
+        + "oder direkt eine Codenummer wie <b>824</b>.<br><br>"
+        + "Tippen auf einen Treffer kopiert den Code und legt ihn unter <b>Zuletzt benutzt</b> ab. "
+        + "Mit <b>★</b> bleibt ein Code dauerhaft oben.";
+      outEl.appendChild(h);
+    }
+    const shown = (artFilter ? DATA.filter(d => d.art === artFilter).length : DATA.length);
+    $("count").textContent = shown + " Codes";
+    return;
+  }
+
+  $("count").textContent = res.length + " Treffer";
+  if (!res.length){
+    const e = document.createElement("div");
+    e.className = "empty";
+    e.innerHTML = "Kein Treffer für <b>" + q.replace(/[<>&]/g,"") + "</b>."
+      + (artFilter ? "<br>Filter <b>" + artFilter + "</b> ist aktiv – evtl. auf „Alle“ stellen." : "")
+      + "<br><br>Tipp: kürzer suchen (z. B. <b>kabel</b> statt <b>Kabelkanal Stein</b>).";
+    outEl.appendChild(e);
+    return;
+  }
+  const ul = document.createElement("ul");
+  res.forEach(d => ul.appendChild(rowEl(d, toks)));
+  outEl.appendChild(ul);
+}
+
+/* --- Auswahl: Code kopieren + merken --- */
+function pick(d){
+  copy(d.code);
+  recent = [d.code, ...recent.filter(c => c !== d.code)].slice(0,15);
+  store.set("pc_recent", recent);
+  toast(d.code + " kopiert · " + pretty(d.element));
+}
+function copy(text){
+  if (navigator.clipboard && location.protocol !== "file:"){
+    navigator.clipboard.writeText(text).catch(() => fallbackCopy(text));
+  } else fallbackCopy(text);
+}
+function fallbackCopy(text){
+  const ta = document.createElement("textarea");
+  ta.value = text; ta.setAttribute("readonly","");
+  ta.style.cssText = "position:fixed;left:-9999px";
+  document.body.appendChild(ta); ta.select();
+  try{ document.execCommand("copy"); }catch(e){}
+  document.body.removeChild(ta);
+}
+let toastTimer;
+function toast(msg){
+  const t = $("toast");
+  t.textContent = msg; t.classList.add("on");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.classList.remove("on"), 1900);
+}
+
+/* --- Eingabe --- */
+let debounce;
+qEl.oninput = () => { clearTimeout(debounce); debounce = setTimeout(render, 60); };
+qEl.onkeydown = ev => {
+  if (ev.key === "Escape"){ qEl.value = ""; render(); }
+  if (ev.key === "Enter"){
+    const first = outEl.querySelector("li.row");
+    if (first){ qEl.blur(); pick(BY_CODE.get(first.dataset.code)); }
+  }
+};
+$("clear").onclick = () => { qEl.value = ""; qEl.focus(); render(); };
+
+/* --- Offline-Cache --- */
+$("foot").textContent = DATA.length + " Punktcodes · Quelle punktcodes.csv (gl-survey 2012)";
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")){
+  addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+}
+
+render();
+if (!matchMedia("(pointer: coarse)").matches) qEl.focus();   /* Desktop: direkt tippen */
+</script>
+</body>
+</html>
