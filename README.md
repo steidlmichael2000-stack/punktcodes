@@ -31,10 +31,15 @@ eigenständig, allerdings gibt es dann kein Startbildschirm-Icon.
 
 Weitere Eigenschaften:
 
-- **Filterchips** nach Art (Eisenbahnanlagen, Ver-/Entsorgung, …) — auch ohne Suchbegriff.
+- **Ohne Eingabe steht die vollständige Liste unten** — in Codereihenfolge wie die gedruckte
+  Codeliste, zum Durchblättern, wenn der Suchbegriff nicht einfällt.
+- **Filterchips** nach Art (Eisenbahnanlagen, Ver-/Entsorgung, …) verkürzen diese Liste auf einen
+  Bereich und wirken auch auf *Gemerkt* und *Zuletzt benutzt*.
 - **Tippen auf einen Treffer** kopiert die Codenummer und legt sie unter *Zuletzt benutzt* ab.
   Im Feld nutzt man ohnehin immer dieselben 20 Codes.
-- **★** heftet einen Code dauerhaft nach oben (*Gemerkt*).
+- **★** heftet einen Code dauerhaft nach oben (*Gemerkt*). Die Bestätigung kommt als Einblendung,
+  nicht durch Neuaufbau der Seite — sonst wäre beim Blättern die Scrollposition weg. Der Abschnitt
+  *Gemerkt* zieht bei der nächsten Suche oder Filteränderung nach.
 - `…_allgemein` wird leicht bevorzugt — das ist der übliche Griff, wenn der Spezialfall unklar ist.
 - Hell/Dunkel über **◐**; die Auswahl bleibt gespeichert.
 

@@ -76,6 +76,9 @@
     display:flex;align-items:center;gap:11px;background:var(--card);
     border:1px solid var(--line);border-radius:12px;padding:10px 8px 10px 11px;
     min-height:62px;cursor:pointer;box-shadow:var(--shadow);
+    /* Bei 655 Zeilen spart das das Layout aller Zeilen ausserhalb des Bildschirms.
+       Aeltere Browser ignorieren es und verhalten sich wie vorher. */
+    content-visibility:auto; contain-intrinsic-size:auto 62px;
   }
   li.row:active{transform:scale(.995);border-color:var(--accent)}
   .code{
@@ -194,6 +197,7 @@ const store = {
 let favs   = store.get("pc_fav",[]).filter(c => BY_CODE.has(c));
 let recent = store.get("pc_recent",[]).filter(c => BY_CODE.has(c));
 let artFilter = "";
+let gen = 0;   /* Zaehler je Ausgabe: bricht das Nachladen einer ueberholten Liste ab */
 
 const $ = id => document.getElementById(id);
 const qEl = $("q"), outEl = $("out");
@@ -311,9 +315,15 @@ function rowEl(d, toks){
   star.onclick = ev => {
     ev.stopPropagation();
     const i = favs.indexOf(d.code);
-    if (i >= 0) favs.splice(i,1); else favs.unshift(d.code);
+    const on = i < 0;
+    if (on) favs.unshift(d.code); else favs.splice(i, 1);
     store.set("pc_fav", favs);
-    render();
+    /* Bewusst kein Neuaufbau: beim Blaettern durch die Gesamtliste waere sonst die
+       Scrollposition weg. Nur die Sterne desselben Codes gleichziehen; der Abschnitt
+       "Gemerkt" zieht bei der naechsten Suche bzw. Filteraenderung nach. */
+    document.querySelectorAll('li.row[data-code="' + d.code + '"] .star')
+      .forEach(b => b.setAttribute("aria-pressed", String(on)));
+    toast(d.code + (on ? " gemerkt" : " nicht mehr gemerkt"));
   };
 
   li.append(c, info, star);
@@ -321,17 +331,39 @@ function rowEl(d, toks){
   li.onkeydown = ev => { if (ev.key === "Enter" || ev.key === " "){ ev.preventDefault(); pick(d); } };
   return li;
 }
-function section(title, items, toks){
+/* Lange Listen in Haeppchen fuellen: der erste Bildschirm steht sofort, der Rest
+   kommt in den folgenden Frames nach. Sonst blockiert die Gesamtliste den Start. */
+function fillList(ul, items, toks, myGen){
+  const CHUNK = 60;
+  let i = 0;
+  const chunk = () => {
+    const frag = document.createDocumentFragment();
+    const end = Math.min(i + CHUNK, items.length);
+    for (; i < end; i++) frag.appendChild(rowEl(items[i], toks));
+    ul.appendChild(frag);
+  };
+  const step = () => {
+    if (myGen !== gen) return;                    /* Ausgabe ist inzwischen ueberholt */
+    /* Unsichtbare Seite: requestAnimationFrame ruht und Timer werden auf eine Sekunde
+       gebremst. Da ohnehin niemand hinsieht, dann alles in einem Zug fuellen. */
+    if (document.hidden){ while (i < items.length) chunk(); return; }
+    chunk();
+    if (i < items.length) requestAnimationFrame(step);
+  };
+  step();
+}
+function section(title, items, toks, myGen){
   if (!items.length) return null;
   const frag = document.createDocumentFragment();
   const h = document.createElement("div");
   h.className = "sectionhead"; h.textContent = title;
   const ul = document.createElement("ul");
-  items.forEach(d => ul.appendChild(rowEl(d, toks)));
+  fillList(ul, items, toks, myGen);
   frag.append(h, ul);
   return frag;
 }
 function render(){
+  const myGen = ++gen;
   const q = qEl.value.trim();
   const toks = tokenize(q);
   const res = search(q);
@@ -342,21 +374,24 @@ function render(){
     const inFilter = c => { const d = BY_CODE.get(c); return d && (!artFilter || d.art === artFilter); };
     const f = favs.filter(inFilter).map(c => BY_CODE.get(c));
     const r = recent.filter(c => inFilter(c) && !favs.includes(c)).slice(0,12).map(c => BY_CODE.get(c));
-    const a = section("Gemerkt", f, []);
-    const b = section("Zuletzt benutzt", r, []);
+    const all = artFilter ? DATA.filter(d => d.art === artFilter) : DATA;
+    const a = section("Gemerkt", f, [], myGen);
+    const b = section("Zuletzt benutzt", r, [], myGen);
     if (a) outEl.appendChild(a);
     if (b) outEl.appendChild(b);
     if (!a && !b){
       const h = document.createElement("div");
       h.className = "hint";
       h.innerHTML = "Suchbegriff eingeben – etwa <b>Kabelkanal</b>, <b>Schacht</b>, <b>Weiche</b> "
-        + "oder direkt eine Codenummer wie <b>824</b>.<br><br>"
+        + "oder direkt eine Codenummer wie <b>824</b>. Ohne Eingabe steht unten die "
+        + "vollständige Liste zum Durchblättern.<br><br>"
         + "Tippen auf einen Treffer kopiert den Code und legt ihn unter <b>Zuletzt benutzt</b> ab. "
         + "Mit <b>★</b> bleibt ein Code dauerhaft oben.";
       outEl.appendChild(h);
     }
-    const shown = (artFilter ? DATA.filter(d => d.art === artFilter).length : DATA.length);
-    $("count").textContent = shown + " Codes";
+    /* Gesamtliste in Codereihenfolge – wie die gedruckte Codeliste */
+    outEl.appendChild(section((artFilter || "Alle Codes") + " · " + all.length, all, [], myGen));
+    $("count").textContent = all.length + " Codes";
     return;
   }
 
@@ -371,7 +406,7 @@ function render(){
     return;
   }
   const ul = document.createElement("ul");
-  res.forEach(d => ul.appendChild(rowEl(d, toks)));
+  fillList(ul, res, toks, myGen);
   outEl.appendChild(ul);
 }
 
