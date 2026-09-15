@@ -1,55 +1,92 @@
 <#
-    make-icons.ps1 - erzeugt die PWA-Icons (Vermessungspunkt-Symbol).
-    Muss nur einmal laufen bzw. wenn sich das Icon aendern soll.
+    make-icons.ps1 - erzeugt die PWA-Icons aus icon.svg.
+    Muss nur laufen, wenn sich das Motiv aendert - geaendert wird es in
+    icon.svg, nicht hier.
+
+    Rasterisiert wird mit dem headless Browser: icon.svg ist dieselbe
+    Zeichnung wie das Kachel-Icon auf der Uebersichtsseite, und die soll
+    Strich fuer Strich gleich bleiben.
 #>
 [CmdletBinding()] param()
 $ErrorActionPreference = "Stop"
 Add-Type -AssemblyName System.Drawing
 
-function New-Icon {
-    param(
-        [int]    $Size,
-        [string] $Path,
-        [double] $Inset   # Anteil Rand (maskable braucht mehr Luft)
-    )
-    $bmp = [System.Drawing.Bitmap]::new($Size, $Size)
-    $g   = [System.Drawing.Graphics]::FromImage($bmp)
-    $g.SmoothingMode = 'AntiAlias'
+$root   = $PSScriptRoot
+$ground = "#07080d"   # gleicher Ton wie die Flaeche in icon.svg
 
-    $bg = [System.Drawing.Color]::FromArgb(11, 61, 98)      # #0b3d62
-    $g.Clear($bg)
+$browser = @(
+    "$env:ProgramFiles\Google\Chrome\Application\chrome.exe",
+    "${env:ProgramFiles(x86)}\Google\Chrome\Application\chrome.exe",
+    "$env:ProgramFiles\Microsoft\Edge\Application\msedge.exe",
+    "${env:ProgramFiles(x86)}\Microsoft\Edge\Application\msedge.exe"
+) | Where-Object { Test-Path $_ } | Select-Object -First 1
 
-    $fg  = [System.Drawing.Color]::FromArgb(255, 255, 255)
-    $pad = $Size * $Inset
-    $box = $Size - 2 * $pad
-    $cx  = $Size / 2.0
-    $stroke = [math]::Max(2.0, $Size * 0.055)
-    $pen = [System.Drawing.Pen]::new($fg, $stroke)
-    $pen.StartCap = 'Round'; $pen.EndCap = 'Round'
+if (-not $browser) { throw "Weder Chrome noch Edge gefunden - ohne Browser keine Rasterisierung." }
 
-    # Kreis
-    $r = $box * 0.34
-    $g.DrawEllipse($pen, [float]($cx - $r), [float]($cx - $r), [float](2 * $r), [float](2 * $r))
+# Gross rendern und danach herunterrechnen, das gibt saubere Kanten.
+$render = 2048
+$svg    = [Convert]::ToBase64String([IO.File]::ReadAllBytes((Join-Path $root "icon.svg")))
+$tmp    = Join-Path ([IO.Path]::GetTempPath()) ("icons-" + [Guid]::NewGuid().ToString("N"))
+New-Item -ItemType Directory -Path $tmp | Out-Null
 
-    # Kreuz durch den Kreis (Vermessungspunkt)
-    $arm = $box * 0.48
-    $g.DrawLine($pen, [float]($cx - $arm), [float]$cx, [float]($cx + $arm), [float]$cx)
-    $g.DrawLine($pen, [float]$cx, [float]($cx - $arm), [float]$cx, [float]($cx + $arm))
+function New-Shot {
+    param([string] $Name, [double] $Share)
 
-    # Mittelpunkt
-    $accent = [System.Drawing.SolidBrush]::new([System.Drawing.Color]::FromArgb(255, 209, 102))
-    $d = $box * 0.10
-    $g.FillEllipse($accent, [float]($cx - $d), [float]($cx - $d), [float](2 * $d), [float](2 * $d))
+    # $Share < 1 ist der maskable-Fall: icon.svg sitzt kleiner auf ganzflaechigem
+    # Grund. Weil der Grund derselbe Ton ist, fallen die runden Ecken von
+    # icon.svg dabei nicht auf - Android schneidet selbst zu.
+    $inner = [int]($render * $Share)
+    # Bei voller Groesse bleibt der Grund durchsichtig, sonst wuerden die
+    # runden Ecken von icon.svg im gleichfarbigen Hintergrund verschwinden.
+    $back  = if ($Share -ge 1.0) { "transparent" } else { $ground }
+    $html  = Join-Path $tmp "$Name.html"
+    @"
+<!doctype html><meta charset=utf-8>
+<style>html,body{margin:0;padding:0;background:transparent}
+.b{width:${render}px;height:${render}px;background:$back;display:flex;align-items:center;justify-content:center}
+img{width:${inner}px;height:${inner}px}</style>
+<div class=b><img src="data:image/svg+xml;base64,$svg"></div>
+"@ | Set-Content -Path $html -Encoding UTF8
 
-    $g.Dispose()
-    $bmp.Save($Path, [System.Drawing.Imaging.ImageFormat]::Png)
-    $bmp.Dispose()
-    Write-Host "  $([System.IO.Path]::GetFileName($Path)) ($Size x $Size)"
+    $out = Join-Path $tmp "$Name.png"
+    $url = "file:///" + $html.Replace([char]92, "/")
+    & $browser --headless=new --disable-gpu --hide-scrollbars `
+        --default-background-color=00000000 --force-device-scale-factor=1 `
+        "--window-size=$render,$render" "--screenshot=$out" $url | Out-Null
+    if (-not (Test-Path $out)) { throw "Rasterisierung fehlgeschlagen: $Name" }
+    return $out
 }
 
-$root = $PSScriptRoot
+function Save-Scaled {
+    param([string] $Source, [int] $Size, [string] $Path)
+
+    $dir = Split-Path -Parent $Path
+    if (-not (Test-Path $dir)) { New-Item -ItemType Directory -Path $dir | Out-Null }
+
+    $src = [System.Drawing.Image]::FromFile($Source)
+    $bmp = [System.Drawing.Bitmap]::new($Size, $Size)
+    $g   = [System.Drawing.Graphics]::FromImage($bmp)
+    $g.InterpolationMode = 'HighQualityBicubic'
+    $g.PixelOffsetMode   = 'HighQuality'
+    $g.SmoothingMode     = 'AntiAlias'
+    $g.DrawImage($src, 0, 0, $Size, $Size)
+    $g.Dispose()
+    $bmp.Save($Path, [System.Drawing.Imaging.ImageFormat]::Png)
+    $bmp.Dispose(); $src.Dispose()
+    Write-Host "  $([IO.Path]::GetFileName($Path)) ($Size x $Size)"
+}
+
 Write-Host "Icons werden erzeugt:" -ForegroundColor Cyan
-New-Icon -Size 192 -Path (Join-Path $root "icon-192.png")          -Inset 0.14
-New-Icon -Size 512 -Path (Join-Path $root "icon-512.png")          -Inset 0.14
-New-Icon -Size 512 -Path (Join-Path $root "icon-maskable-512.png") -Inset 0.22
+try {
+    $any = New-Shot -Name "any" -Share 1.0
+    Save-Scaled -Source $any -Size 512 -Path (Join-Path $root "icon-512.png")
+    Save-Scaled -Source $any -Size 192 -Path (Join-Path $root "icon-192.png")
+
+    # Mehr Luft, weil Android beim maskable-Icon die Raender wegschneidet.
+    $mask = New-Shot -Name "maskable" -Share 0.78
+    Save-Scaled -Source $mask -Size 512 -Path (Join-Path $root "icon-maskable-512.png")
+}
+finally {
+    Remove-Item -Recurse -Force $tmp -ErrorAction SilentlyContinue
+}
 Write-Host "Fertig." -ForegroundColor Green

@@ -1,7 +1,7 @@
 /* Service Worker: haelt die App im Aussendienst ohne Netz lauffaehig.
    Die Cache-Version wird von build.ps1 automatisch aktualisiert. */
-const CACHE = 'punktcodes-e868d9d7';
-const ASSETS = ['./', './index.html', './manifest.json',
+const CACHE = 'punktcodes-d86cf411';
+const ASSETS = ['./', './index.html', './manifest.json', './icon.svg',
                 './icon-192.png', './icon-512.png', './icon-maskable-512.png'];
 
 self.addEventListener('install', e => {
@@ -36,6 +36,7 @@ self.addEventListener('fetch', e => {
     })
   );
 });
+
 
 
 
