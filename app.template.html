@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#0b3d62">
+<meta name="theme-color" content="#1761a3">
 <meta name="description" content="Punktcode-Suche für den Außendienst – offline verfügbar">
 <title>Punktcodes</title>
 <link rel="manifest" href="manifest.json">
@@ -12,11 +12,16 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <style>
+  /* Signalfarbe ist Lapis (#1761A3), der Blauton des Firmenlogos — derselbe
+     wie in TrackPilot. Auf dem dunklen Grund steht er nur bei 3:1 und waere
+     dort fuer Beschriftungen zu dunkel, deshalb laeuft im Dunkelmodus ein
+     aufgehellter Ton derselben Farbe. --accent-text ist die Schrift auf
+     gefuellten Flaechen und wechselt entsprechend. */
   :root{
-    /* Messwerk · Plan — Zeichenpapier, Grün als Signal der App */
+    /* Messwerk · Plan — Zeichenpapier, Lapis als Signal der App */
     --bg:#eceae3; --card:#f7f6f1; --text:#14161c; --muted:#5b6070;
-    --line:rgba(18,20,26,0.22); --accent:#0f8a62; --accent-text:#f7f6f1;
-    --code-bg:transparent; --code-text:#0f8a62;
+    --line:rgba(18,20,26,0.22); --accent:#1761a3; --accent-text:#f7f6f1;
+    --code-bg:transparent; --code-text:#1761a3;
     --fav:#96590a; --badge:transparent; --badge-text:#5b6070;
     --grid:rgba(18,20,26,0.05);
     --shadow:none;
@@ -24,8 +29,8 @@
   html[data-theme="dark"]{
     /* Messwerk · Nacht */
     --bg:#06070b; --card:#0d0f15; --text:#e9ebf1; --muted:#8a90a3;
-    --line:rgba(255,255,255,0.22); --accent:#34d399; --accent-text:#06070b;
-    --code-bg:transparent; --code-text:#34d399;
+    --line:rgba(255,255,255,0.22); --accent:#55a5e7; --accent-text:#06070b;
+    --code-bg:transparent; --code-text:#55a5e7;
     --fav:#f5a524; --badge:transparent; --badge-text:#8a90a3;
     --grid:rgba(255,255,255,0.028);
     --shadow:none;
